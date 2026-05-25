@@ -1,124 +1,82 @@
-// Prevent double injection
-if (window.__timeTrackerLoaded) {
-    // already running, skip
-} else {
-    window.__timeTrackerLoaded = true;
+if (!window.__timeTrackerLoaded) {
+window.__timeTrackerLoaded = true;
 
 let timerWidget = null;
-let updateIntervalId = null;
-let pendingRequest = false;
-let cachedTime = 0;
+let intervalId = null;
 
-function isExtensionContextValid() {
+function isContextValid() {
     try { return !!(chrome && chrome.runtime && chrome.runtime.id); } catch (e) { return false; }
 }
 
-function initializeTimerWidget() {
-    console.log('[TT] initializeTimerWidget called, body:', !!document.body);
-    if (timerWidget && document.body.contains(timerWidget)) { console.log('[TT] widget already exists'); return; }
-    if (!document.body) { setTimeout(initializeTimerWidget, 100); return; }
+function renderTime(ms) {
+    if (!timerWidget) return;
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    timerWidget.textContent =
+        `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
 
-    chrome.storage.sync.get(['showOverlay'], (result) => {
-        console.log('[TT] showOverlay:', result.showOverlay, 'lastError:', chrome.runtime.lastError?.message);
-        if (chrome.runtime.lastError) { createWidget(); return; }
-        if (result.showOverlay !== false) createWidget();
-        else console.log('[TT] showOverlay is false, not creating widget');
-    });
+function tick() {
+    if (!isContextValid()) {
+        clearInterval(intervalId);
+        intervalId = null;
+        removeWidget();
+        return;
+    }
+    if (!timerWidget || !document.body.contains(timerWidget)) return;
+    try {
+        chrome.runtime.sendMessage({ action: 'getTime' }, (response) => {
+            if (chrome.runtime.lastError || !response) return;
+            renderTime(response.totalTime || 0);
+        });
+    } catch (e) {
+        clearInterval(intervalId);
+        intervalId = null;
+        removeWidget();
+    }
 }
 
 function createWidget() {
-    console.log('[TT] createWidget called');
+    if (timerWidget && document.body.contains(timerWidget)) return;
     timerWidget = document.createElement('div');
     timerWidget.id = 'time-tracker-widget';
     timerWidget.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: white;
-        border: 2px solid #333;
-        padding: 10px 15px;
-        border-radius: 5px;
-        font-family: monospace;
-        font-size: 14px;
-        z-index: 999999;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        color: #333;
-        min-width: 150px;
-        text-align: center;
-        line-height: 1.4;
+        position: fixed; bottom: 20px; right: 20px;
+        background: white; border: 2px solid #333;
+        padding: 10px 15px; border-radius: 5px;
+        font-family: monospace; font-size: 14px;
+        z-index: 999999; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        color: #333; min-width: 150px; text-align: center;
     `;
-
-    try { document.body.appendChild(timerWidget); } catch (e) { return; }
     timerWidget.textContent = '⏱ ...';
-
-    function updateTimer() {
-        if (!isExtensionContextValid()) {
-            clearInterval(updateIntervalId);
-            updateIntervalId = null;
-            return;
-        }
-        if (!timerWidget || !document.body.contains(timerWidget)) return;
-
-        // Calculate locally: savedTotal + time since activeTabStartTime
-        const now = Date.now();
-        const elapsed = (activeTabStartTime > 0) ? (now - activeTabStartTime) : 0;
-        renderTime(savedTotal + elapsed);
-    }
-
-    // Fetch base values from background once, then tick locally
-    function fetchAndSync() {
-        if (!isExtensionContextValid()) return;
-        chrome.runtime.sendMessage({ action: 'getTime' }, (response) => {
-            if (chrome.runtime.lastError || !response) return;
-            // Sync: store the total and reset local start
-            savedTotal = response.totalTime || 0;
-            activeTabStartTime = Date.now();
-        });
-    }
-
-    function renderTime(ms) {
-        if (!timerWidget) return;
-        const s = Math.floor(ms / 1000);
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        const sec = s % 60;
-        timerWidget.textContent =
-            `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-    }
-
-    let savedTotal = 0;
-    let activeTabStartTime = 0;
-
-    fetchAndSync();
-    updateTimer();
-    updateIntervalId = setInterval(updateTimer, 1000);
-    // Re-sync with background every 10 seconds to stay accurate
-    setInterval(fetchAndSync, 10000);
+    try { document.body.appendChild(timerWidget); } catch (e) { return; }
+    intervalId = setInterval(tick, 1000);
+    tick();
 }
 
-function cleanupWidget() {
-    if (updateIntervalId !== null) { clearInterval(updateIntervalId); updateIntervalId = null; }
-    if (timerWidget && document.body.contains(timerWidget)) { timerWidget.remove(); timerWidget = null; }
+function removeWidget() {
+    clearInterval(intervalId);
+    intervalId = null;
+    if (timerWidget) { timerWidget.remove(); timerWidget = null; }
 }
 
-// React to showOverlay setting changes without page reload
-chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace !== 'sync' || !('showOverlay' in changes)) return;
-    if (changes.showOverlay.newValue === false) {
-        cleanupWidget();
-    } else {
-        initializeTimerWidget();
-    }
+function init() {
+    if (!document.body) { setTimeout(init, 100); return; }
+    chrome.storage.sync.get(['showOverlay'], (r) => {
+        if (!chrome.runtime.lastError && r.showOverlay === false) return;
+        createWidget();
+    });
+}
+
+chrome.storage.onChanged.addListener((changes, ns) => {
+    if (ns !== 'sync' || !('showOverlay' in changes)) return;
+    changes.showOverlay.newValue === false ? removeWidget() : init();
 });
 
-window.addEventListener('beforeunload', cleanupWidget, { once: true });
+window.addEventListener('beforeunload', removeWidget, { once: true });
 
-// document_idle guarantees body exists, but keep fallback just in case
-console.log('[TT] content.js loaded, readyState:', document.readyState, 'body:', !!document.body);
-if (document.body) {
-    initializeTimerWidget();
-} else {
-    document.addEventListener('DOMContentLoaded', initializeTimerWidget);
-}
+init();
 
-} // end of window.__timeTrackerLoaded guard
+} // end guard

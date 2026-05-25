@@ -1,10 +1,8 @@
 let activeTabId = null;
-let activeTabStartTime = 0;
 let alertDismissedUntil = 0;
 let alertShown = false;
-let browserFocused = true;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getNextResetTime(hour) {
     const now = new Date();
@@ -15,43 +13,65 @@ function getNextResetTime(hour) {
 }
 
 function getEndOfDay() {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    return tomorrow.getTime();
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
 }
 
 function isBlockedNow(site) {
-    if (!site.enableConditionalBlock) return true; // always blocked
-
+    if (!site.enableConditionalBlock) return true;
     const now = new Date();
-    const [startH, startM] = site.blockStartTime.split(':').map(Number);
-    const [endH, endM] = site.blockEndTime.split(':').map(Number);
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    const startMins = startH * 60 + startM;
-    const endMins = endH * 60 + endM;
-    return nowMins >= startMins && nowMins < endMins;
+    const [sh, sm] = site.blockStartTime.split(':').map(Number);
+    const [eh, em] = site.blockEndTime.split(':').map(Number);
+    const cur = now.getHours() * 60 + now.getMinutes();
+    return cur >= sh * 60 + sm && cur < eh * 60 + em;
+}
+
+// ── Tracking: start / pause / resume ─────────────────────────────────────────
+
+function startTracking() {
+    chrome.storage.local.get(['trackingStart'], (r) => {
+        if (r.trackingStart) return; // already tracking
+        chrome.storage.local.set({ trackingStart: Date.now() });
+    });
+}
+
+function pauseTracking() {
+    chrome.storage.local.get(['trackingStart', 'totalTime'], (r) => {
+        if (!r.trackingStart) return; // already paused
+        const elapsed = Date.now() - r.trackingStart;
+        const totalTime = (r.totalTime || 0) + elapsed;
+        chrome.storage.local.set({ totalTime, trackingStart: null });
+        checkLimitExceeded(totalTime);
+    });
+}
+
+function checkLimitExceeded(totalTime) {
+    chrome.storage.local.get(['dailyLimit'], (r) => {
+        const limit = r.dailyLimit || 2 * 60 * 60 * 1000;
+        if (totalTime > limit && Date.now() > alertDismissedUntil && !alertShown) {
+            showLimitExceededAlert();
+        }
+    });
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getTime') {
-        chrome.storage.local.get(['totalTime', 'activeTabStartTime'], (result) => {
+        chrome.storage.local.get(['totalTime', 'trackingStart'], (r) => {
             if (chrome.runtime.lastError) { sendResponse({ totalTime: 0 }); return; }
-            let totalTime = result.totalTime || 0;
-            const savedStartTime = result.activeTabStartTime || 0;
-            if (browserFocused && savedStartTime > 0) {
-                totalTime += Date.now() - savedStartTime;
-            }
-            try { sendResponse({ totalTime }); } catch (e) {}
+            let total = r.totalTime || 0;
+            if (r.trackingStart) total += Date.now() - r.trackingStart;
+            try { sendResponse({ totalTime: total }); } catch (e) {}
         });
         return true;
     }
 
     if (request.action === 'getUsageInfo') {
-        chrome.storage.local.get(['totalTime'], (result) => {
-            try { sendResponse({ totalTime: result.totalTime || 0 }); } catch (e) {}
+        chrome.storage.local.get(['totalTime'], (r) => {
+            try { sendResponse({ totalTime: r.totalTime || 0 }); } catch (e) {}
         });
         return true;
     }
@@ -69,12 +89,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === 'unblockSite') {
-        // Temporarily unblock a site for its configured duration
         const { domain, duration } = request;
-        chrome.storage.local.get(['tempUnblocked'], (result) => {
-            const tempUnblocked = result.tempUnblocked || {};
-            tempUnblocked[domain] = Date.now() + (duration * 60 * 1000);
-            chrome.storage.local.set({ tempUnblocked });
+        chrome.storage.local.get(['tempUnblocked'], (r) => {
+            const t = r.tempUnblocked || {};
+            t[domain] = Date.now() + duration * 60 * 1000;
+            chrome.storage.local.set({ tempUnblocked: t });
         });
         sendResponse({ success: true });
     }
@@ -82,57 +101,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
-function initActiveTab() {
+function initTracking() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs && tabs[0]) {
-            activeTabId = tabs[0].id;
-            activeTabStartTime = Date.now();
-            chrome.storage.local.set({ activeTabStartTime });
+        if (!tabs || !tabs[0]) return;
+        activeTabId = tabs[0].id;
+        const url = tabs[0].url || '';
+        if (!url.startsWith('chrome://') && !url.startsWith('about:') && !url.startsWith('chrome-extension://')) {
+            startTracking();
         }
     });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-    initActiveTab();
-    chrome.storage.sync.get(['resetHour'], (result) => {
+    initTracking();
+    chrome.storage.sync.get(['resetHour'], (r) => {
         if (chrome.runtime.lastError) return;
-        const resetHour = result.resetHour || 0;
         chrome.alarms.create('dailyReset', {
-            when: getNextResetTime(resetHour),
+            when: getNextResetTime(r.resetHour || 0),
             periodInMinutes: 24 * 60
         });
     });
 });
 
-chrome.runtime.onStartup.addListener(initActiveTab);
+chrome.runtime.onStartup.addListener(initTracking);
 
-// ── Daily Reset Alarm ─────────────────────────────────────────────────────────
+// ── Daily Reset ───────────────────────────────────────────────────────────────
 
 chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name !== 'dailyReset') return;
 
-    chrome.storage.local.get(['totalTime', 'siteTimes'], (result) => {
+    chrome.storage.local.get(['totalTime', 'siteTimes'], (r) => {
         const today = new Date().toISOString().split('T')[0];
-        const dailyData = {
-            date: today,
-            totalTime: result.totalTime || 0,
-            siteTimes: result.siteTimes || {}
-        };
-
-        // Save to history in local (not sync — avoids 100KB limit)
-        chrome.storage.local.get(['dailyHistory'], (localResult) => {
-            let history = localResult.dailyHistory || [];
-            if (history.length === 0 || history[history.length - 1].date !== today) {
-                history.push(dailyData);
+        chrome.storage.local.get(['dailyHistory'], (hr) => {
+            let history = hr.dailyHistory || [];
+            if (!history.length || history[history.length - 1].date !== today) {
+                history.push({ date: today, totalTime: r.totalTime || 0, siteTimes: r.siteTimes || {} });
             }
             if (history.length > 90) history = history.slice(-90);
             chrome.storage.local.set({
                 dailyHistory: history,
                 totalTime: 0,
+                trackingStart: null,
                 lastReset: Date.now(),
                 siteTimes: {},
                 tempUnblocked: {}
             });
+            // Restart tracking after reset
+            initTracking();
         });
     });
 
@@ -144,117 +159,77 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     });
 });
 
-// ── Tab / Window Events ───────────────────────────────────────────────────────
+// ── Tab Events ────────────────────────────────────────────────────────────────
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
-    saveActiveTabTime();
-    activeTabId = activeInfo.tabId;
-    activeTabStartTime = browserFocused ? Date.now() : 0;
-    chrome.storage.local.set({ activeTabStartTime });
+    // Save time for old tab's domain before switching
+    saveDomainTime(() => {
+        activeTabId = activeInfo.tabId;
+        chrome.tabs.get(activeTabId, (tab) => {
+            if (chrome.runtime.lastError || !tab) return;
+            const url = tab.url || '';
+            if (url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) {
+                pauseTracking();
+            } else {
+                // Reset trackingStart for new tab
+                chrome.storage.local.set({ trackingStart: Date.now() });
+            }
+        });
+    });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (tabId === activeTabId && changeInfo.status === 'complete') {
-        saveActiveTabTime();
-        activeTabStartTime = browserFocused ? Date.now() : 0;
-        chrome.storage.local.set({ activeTabStartTime });
-    }
-    // Inject content script as fallback (in case declarative injection was blocked)
+    // Inject content script fallback
     if (changeInfo.status === 'complete' && tab.url &&
         !tab.url.startsWith('chrome://') && !tab.url.startsWith('about:') &&
         !tab.url.startsWith('chrome-extension://')) {
-        chrome.scripting.executeScript({
-            target: { tabId },
-            files: ['content.js']
-        }).catch(() => {});
+        chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }).catch(() => {});
     }
 });
 
-// ── Block sites immediately on navigation ─────────────────────────────────────
+// ── Window Focus / Minimize ───────────────────────────────────────────────────
 
-function checkAndBlock(tabId, url) {
+chrome.windows.onFocusChanged.addListener((windowId) => {
+    if (windowId === chrome.windows.WINDOW_ID_NONE) {
+        pauseTracking();
+    } else {
+        chrome.windows.get(windowId, {}, (win) => {
+            if (chrome.runtime.lastError || !win || win.state === 'minimized') return;
+            startTracking();
+        });
+    }
+});
+
+chrome.windows.onBoundsChanged.addListener((win) => {
+    if (win.state === 'minimized') {
+        pauseTracking();
+    } else if (win.state === 'normal' || win.state === 'maximized') {
+        chrome.windows.getLastFocused({}, (fw) => {
+            if (chrome.runtime.lastError || !fw || fw.state === 'minimized') return;
+            if (fw.id === win.id) startTracking();
+        });
+    }
+});
+
+// ── Block Sites ───────────────────────────────────────────────────────────────
+
+chrome.webNavigation.onCommitted.addListener((details) => {
+    if (details.frameId !== 0) return;
+    const url = details.url;
     if (!url || url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) return;
     let hostname;
     try { hostname = new URL(url).hostname; } catch (e) { return; }
 
-    chrome.storage.sync.get(['blockedSitesAdvanced'], (syncResult) => {
+    chrome.storage.sync.get(['blockedSitesAdvanced'], (r) => {
         if (chrome.runtime.lastError) return;
-        const blockedSite = (syncResult.blockedSitesAdvanced || []).find(s => s.domain === hostname);
-        if (!blockedSite) return;
-        chrome.storage.local.get(['tempUnblocked'], (localResult) => {
-            const tempUnblocked = localResult.tempUnblocked || {};
-            if (Date.now() < (tempUnblocked[hostname] || 0)) return;
-            if (isBlockedNow(blockedSite)) redirectToBlockPage(tabId, hostname, blockedSite);
+        const site = (r.blockedSitesAdvanced || []).find(s => s.domain === hostname);
+        if (!site) return;
+        chrome.storage.local.get(['tempUnblocked'], (lr) => {
+            if (Date.now() < ((lr.tempUnblocked || {})[hostname] || 0)) return;
+            if (isBlockedNow(site)) redirectToBlockPage(details.tabId, hostname, site);
         });
     });
-}
-
-chrome.webNavigation.onCommitted.addListener((details) => {
-    if (details.frameId !== 0) return; // main frame only
-    checkAndBlock(details.tabId, details.url);
 });
-
-chrome.windows.onFocusChanged.addListener((windowId) => {
-    if (windowId === chrome.windows.WINDOW_ID_NONE) {
-        browserFocused = false;
-        saveActiveTabTime();
-        chrome.storage.local.set({ activeTabStartTime: 0 });
-    } else {
-        browserFocused = true;
-        if (activeTabId !== null) {
-            activeTabStartTime = Date.now();
-            chrome.storage.local.set({ activeTabStartTime });
-        }
-    }
-});
-
-// ── Core: Save Time ───────────────────────────────────────────────────────────
-
-function saveActiveTabTime() {
-    if (activeTabId === null || activeTabStartTime === 0) return;
-
-    const now = Date.now();
-    const timeSpent = now - activeTabStartTime;
-    activeTabStartTime = 0;
-    chrome.storage.local.set({ activeTabStartTime: 0 });
-
-    if (timeSpent <= 0) return;
-
-    chrome.tabs.get(activeTabId, (tab) => {
-        if (chrome.runtime.lastError || !tab || !tab.url) return;
-        if (tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://')) return;
-
-        let url;
-        try { url = new URL(tab.url); } catch (e) { return; }
-        const domain = url.hostname;
-
-        chrome.storage.sync.get(['blockedSitesAdvanced'], (syncResult) => {
-            if (chrome.runtime.lastError) return;
-            const blockedSites = syncResult.blockedSitesAdvanced || [];
-            const blockedSite = blockedSites.find(s => s.domain === domain);
-
-            if (blockedSite) {
-                // Check temporary unblock
-                chrome.storage.local.get(['tempUnblocked'], (localResult) => {
-                    const tempUnblocked = localResult.tempUnblocked || {};
-                    const unblockUntil = tempUnblocked[domain] || 0;
-                    if (Date.now() < unblockUntil) {
-                        // Temporarily unblocked — count the time
-                        saveTimeForDomain(domain, now, timeSpent);
-                    } else if (isBlockedNow(blockedSite)) {
-                        // Blocked — don't count time, redirect tab
-                        redirectToBlockPage(tab.id, domain, blockedSite);
-                    } else {
-                        // Outside conditional block hours — count normally
-                        saveTimeForDomain(domain, now, timeSpent);
-                    }
-                });
-            } else {
-                saveTimeForDomain(domain, now, timeSpent);
-            }
-        });
-    });
-}
 
 function redirectToBlockPage(tabId, domain, site) {
     const params = new URLSearchParams({
@@ -262,64 +237,46 @@ function redirectToBlockPage(tabId, domain, site) {
         message: site.message || 'בחרת לחסום את האתר הזה',
         unblockDuration: site.enableUnblockTime ? site.unblockDuration : 0
     });
-    const blockUrl = chrome.runtime.getURL('blocked.html') + '?' + params.toString();
-    chrome.tabs.update(tabId, { url: blockUrl }).catch(() => {});
+    chrome.tabs.update(tabId, { url: chrome.runtime.getURL('blocked.html') + '?' + params }).catch(() => {});
 }
 
-function saveTimeForDomain(domain, now, timeSpent) {
-    chrome.storage.local.get(['totalTime', 'siteTimes', 'lastReset', 'dailyLimit'], (result) => {
-        if (chrome.runtime.lastError) return;
+// ── Save domain time (called before tab switch) ───────────────────────────────
 
-        const dailyLimit = result.dailyLimit || 2 * 60 * 60 * 1000;
+function saveDomainTime(callback) {
+    chrome.storage.local.get(['trackingStart', 'totalTime', 'siteTimes'], (r) => {
+        if (!r.trackingStart || !activeTabId) { if (callback) callback(); return; }
 
-        // Auto-reset if day changed
-        const lastReset = result.lastReset || now;
-        const lastResetDate = new Date(lastReset);
-        lastResetDate.setHours(0, 0, 0, 0);
-        const todayDate = new Date();
-        todayDate.setHours(0, 0, 0, 0);
+        const elapsed = Date.now() - r.trackingStart;
+        chrome.tabs.get(activeTabId, (tab) => {
+            if (chrome.runtime.lastError || !tab || !tab.url) { if (callback) callback(); return; }
+            let hostname;
+            try { hostname = new URL(tab.url).hostname; } catch (e) { if (callback) callback(); return; }
 
-        if (lastResetDate.getTime() !== todayDate.getTime()) {
-            chrome.storage.local.set({
-                totalTime: timeSpent,
-                siteTimes: { [domain]: timeSpent },
-                lastReset: now
+            const siteTimes = r.siteTimes || {};
+            siteTimes[hostname] = (siteTimes[hostname] || 0) + elapsed;
+            const totalTime = (r.totalTime || 0) + elapsed;
+
+            chrome.storage.local.set({ totalTime, siteTimes, trackingStart: null }, () => {
+                checkLimitExceeded(totalTime);
+                if (callback) callback();
             });
-            return;
-        }
-
-        const totalTime = (result.totalTime || 0) + timeSpent;
-        const siteTimes = result.siteTimes || {};
-        siteTimes[domain] = (siteTimes[domain] || 0) + timeSpent;
-
-        if (totalTime > dailyLimit && now > alertDismissedUntil && !alertShown) {
-            showLimitExceededAlert();
-        }
-
-        chrome.storage.local.set({ totalTime, siteTimes });
+        });
     });
 }
 
-// ── Alert Window ──────────────────────────────────────────────────────────────
+// ── Alert ─────────────────────────────────────────────────────────────────────
 
 function showLimitExceededAlert() {
     if (alertShown) return;
     alertShown = true;
 
-    chrome.storage.sync.get(['enableNotifications'], (result) => {
-        if (result.enableNotifications === false) return;
-
-        // Open alert as a popup window directly (offscreen is not needed for this)
-        const alertPath = chrome.runtime.getURL('alert-window.html');
+    chrome.storage.sync.get(['enableNotifications'], (r) => {
+        if (r.enableNotifications === false) return;
         chrome.windows.create({
-            url: alertPath,
-            type: 'popup',
-            width: 550,
-            height: 600,
-            focused: true
-        }, (win) => {
+            url: chrome.runtime.getURL('alert-window.html'),
+            type: 'popup', width: 550, height: 600, focused: true
+        }, () => {
             if (chrome.runtime.lastError) {
-                // Fallback to notification
                 chrome.notifications.create('limitExceeded', {
                     type: 'basic',
                     iconUrl: chrome.runtime.getURL('images/icon.svg'),
@@ -330,7 +287,6 @@ function showLimitExceededAlert() {
         });
     });
 
-    // Allow showing again after 30 minutes
     setTimeout(() => { alertShown = false; }, 30 * 60 * 1000);
 }
 
@@ -338,17 +294,16 @@ function showLimitExceededAlert() {
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'sync' && changes.resetHour) {
-        const resetHour = changes.resetHour.newValue || 0;
         chrome.alarms.create('dailyReset', {
-            when: getNextResetTime(resetHour),
+            when: getNextResetTime(changes.resetHour.newValue || 0),
             periodInMinutes: 24 * 60
         });
     }
     if (namespace === 'sync' && changes.limitHours) {
-        const hours = changes.limitHours.newValue || 2;
-        const minutes = changes.limitMinutes?.newValue || 0;
-        chrome.storage.local.set({ dailyLimit: (hours * 60 + minutes) * 60 * 1000 });
+        const h = changes.limitHours.newValue || 2;
+        const m = changes.limitMinutes?.newValue || 0;
+        chrome.storage.local.set({ dailyLimit: (h * 60 + m) * 60 * 1000 });
     }
 });
 
-console.log('[Time Tracker] Background service worker started at', new Date().toISOString());
+console.log('[Time Tracker] Background started at', new Date().toISOString());
