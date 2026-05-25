@@ -37,11 +37,12 @@ function isBlockedNow(site) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getTime') {
-        chrome.storage.local.get(['totalTime'], (result) => {
+        chrome.storage.local.get(['totalTime', 'activeTabStartTime'], (result) => {
             if (chrome.runtime.lastError) { sendResponse({ totalTime: 0 }); return; }
             let totalTime = result.totalTime || 0;
-            if (browserFocused && activeTabStartTime > 0) {
-                totalTime += Date.now() - activeTabStartTime;
+            const savedStartTime = result.activeTabStartTime || 0;
+            if (browserFocused && savedStartTime > 0) {
+                totalTime += Date.now() - savedStartTime;
             }
             try { sendResponse({ totalTime }); } catch (e) {}
         });
@@ -86,6 +87,7 @@ function initActiveTab() {
         if (tabs && tabs[0]) {
             activeTabId = tabs[0].id;
             activeTabStartTime = Date.now();
+            chrome.storage.local.set({ activeTabStartTime });
         }
     });
 }
@@ -134,9 +136,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         });
     });
 
-    chrome.notifications.create({
+    chrome.notifications.create('dailyReset', {
         type: 'basic',
-        iconUrl: 'images/icon48.png',
+        iconUrl: chrome.runtime.getURL('images/icon.svg'),
         title: '✅ איפוס יומי',
         message: 'הנתונים אופסו. התחל יום חדש!'
     });
@@ -148,25 +150,60 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
     saveActiveTabTime();
     activeTabId = activeInfo.tabId;
     activeTabStartTime = browserFocused ? Date.now() : 0;
+    chrome.storage.local.set({ activeTabStartTime });
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    // If the active tab navigated to a new URL, restart its timer
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (tabId === activeTabId && changeInfo.status === 'complete') {
         saveActiveTabTime();
         activeTabStartTime = browserFocused ? Date.now() : 0;
+        chrome.storage.local.set({ activeTabStartTime });
     }
+    // Inject content script as fallback (in case declarative injection was blocked)
+    if (changeInfo.status === 'complete' && tab.url &&
+        !tab.url.startsWith('chrome://') && !tab.url.startsWith('about:') &&
+        !tab.url.startsWith('chrome-extension://')) {
+        chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['content.js']
+        }).catch(() => {});
+    }
+});
+
+// ── Block sites immediately on navigation ─────────────────────────────────────
+
+function checkAndBlock(tabId, url) {
+    if (!url || url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) return;
+    let hostname;
+    try { hostname = new URL(url).hostname; } catch (e) { return; }
+
+    chrome.storage.sync.get(['blockedSitesAdvanced'], (syncResult) => {
+        if (chrome.runtime.lastError) return;
+        const blockedSite = (syncResult.blockedSitesAdvanced || []).find(s => s.domain === hostname);
+        if (!blockedSite) return;
+        chrome.storage.local.get(['tempUnblocked'], (localResult) => {
+            const tempUnblocked = localResult.tempUnblocked || {};
+            if (Date.now() < (tempUnblocked[hostname] || 0)) return;
+            if (isBlockedNow(blockedSite)) redirectToBlockPage(tabId, hostname, blockedSite);
+        });
+    });
+}
+
+chrome.webNavigation.onCommitted.addListener((details) => {
+    if (details.frameId !== 0) return; // main frame only
+    checkAndBlock(details.tabId, details.url);
 });
 
 chrome.windows.onFocusChanged.addListener((windowId) => {
     if (windowId === chrome.windows.WINDOW_ID_NONE) {
         browserFocused = false;
-        saveActiveTabTime(); // save time before pausing
+        saveActiveTabTime();
+        chrome.storage.local.set({ activeTabStartTime: 0 });
     } else {
         browserFocused = true;
-        // Resume tracking — only restart if we have an active tab
         if (activeTabId !== null) {
             activeTabStartTime = Date.now();
+            chrome.storage.local.set({ activeTabStartTime });
         }
     }
 });
@@ -179,6 +216,7 @@ function saveActiveTabTime() {
     const now = Date.now();
     const timeSpent = now - activeTabStartTime;
     activeTabStartTime = 0;
+    chrome.storage.local.set({ activeTabStartTime: 0 });
 
     if (timeSpent <= 0) return;
 
@@ -282,9 +320,9 @@ function showLimitExceededAlert() {
         }, (win) => {
             if (chrome.runtime.lastError) {
                 // Fallback to notification
-                chrome.notifications.create({
+                chrome.notifications.create('limitExceeded', {
                     type: 'basic',
-                    iconUrl: 'images/icon48.png',
+                    iconUrl: chrome.runtime.getURL('images/icon.svg'),
                     title: '⏰ הגעת להגבלה היומית',
                     message: 'חרגת מהגבלת השימוש היומית שלך.'
                 });

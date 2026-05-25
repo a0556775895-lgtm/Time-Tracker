@@ -40,31 +40,12 @@
         <h1>אתר חסום</h1>
         <div class="domain" id="domainName"></div>
         <div class="message" id="blockMessage">בחרת לחסום את האתר הזה</div>
-        <button class="btn btn-back" onclick="history.back()">← חזור</button>
+        <button class="btn btn-back" id="backBtn">← חזור</button>
         <div id="unblockSection" style="display:none;">
             <button class="btn btn-unblock" id="unblockBtn">🔓 שחרר זמנית</button>
             <div id="countdown"></div>
         </div>
     </div>
-    <script>
-        const params = new URLSearchParams(location.search);
-        const domain = params.get('domain') || '';
-        const message = params.get('message') || 'בחרת לחסום את האתר הזה';
-        const unblockDuration = parseInt(params.get('unblockDuration')) || 0;
-
-        document.getElementById('domainName').textContent = domain;
-        document.getElementById('blockMessage').textContent = message;
-
-        if (unblockDuration > 0) {
-            document.getElementById('unblockSection').style.display = 'block';
-            document.getElementById('countdown').textContent = `לזמן של ${unblockDuration} דקות`;
-
-            document.getElementById('unblockBtn').addEventListener('click', () => {
-                chrome.runtime.sendMessage({ action: 'unblockSite', domain, duration: unblockDuration }, () => {
-                    location.href = 'https://' + domain;
-                });
-            });
-        }
-    </script>
+    <script src="blocked.js"></script>
 </body>
 </html>

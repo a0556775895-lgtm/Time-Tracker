@@ -8,14 +8,20 @@
     "storage",
     "alarms",
     "notifications",
-    "windows"
+    "windows",
+    "scripting",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "icons": {
+    "48": "images/icon.svg"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Time Tracker"
+    "default_title": "Time Tracker",
+    "default_icon": "images/icon.svg"
   },
   "background": {
     "service_worker": "background.js"
@@ -24,13 +30,13 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ],
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["timer.html", "alert-window.html", "blocked.html"],
+      "resources": ["timer.html", "alert-window.html", "blocked.html", "blocked.js"],
       "matches": ["<all_urls>"]
     }
   ]
