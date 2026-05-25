@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .alert-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            padding: 40px;
+            text-align: center;
+            animation: slideIn 0.4s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+        
+        .message {
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .usage-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .usage-time {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .dismiss-btn {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .dismiss-btn:hover {
+            background: #d0d0d0;
+            transform: translateY(-2px);
+        }
+        
+        .snooze-btn {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .snooze-btn:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+        
+        .snooze-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .time-btn {
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .time-btn:hover {
+            border-color: #ff6b6b;
+            background: #fff5f5;
+        }
+        
+        .time-btn.selected {
+            background: #ff6b6b;
+            color: white;
+            border-color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-container">
+        <div class="icon">⏰</div>
+        <h1>הגבלה היומית חרוגה!</h1>
+        <div class="message">
+            חרגת מהגבלת הזמן היומית שלך!<br>
+            עכשיו זה זמן לעצור ולתת למוח שלך מנוחה.
+        </div>
+        
+        <div class="usage-info">
+            שימוש היום: <div class="usage-time" id="usageTime">00:00</div>
+        </div>
+        
+        <div class="buttons">
+            <button class="dismiss-btn" id="dismissBtn">התעלם</button>
+            <button class="snooze-btn" id="snoozeBtn">הזכר לי</button>
+        </div>
+        
+        <div class="snooze-options" id="snoozeOptions" style="display: none;">
+            <button class="time-btn" data-minutes="5">5 דקות</button>
+            <button class="time-btn" data-minutes="15">15 דקות</button>
+            <button class="time-btn" data-minutes="30">30 דקות</button>
+            <button class="time-btn" data-minutes="60">שעה</button>
+        </div>
+    </div>
+    
+    <script src="alert-window.js"></script>
+</body>
+</html>

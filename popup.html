@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עוקב זמן</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📊 עוקב זמן</h1>
+        
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="today">היום</button>
+            <button class="tab-btn" data-tab="sites">אתרים מובילים</button>
+            <button class="tab-btn" data-tab="reports">דוחות</button>
+        </div>
+
+        <!-- TAB: היום -->
+        <div id="today" class="tab-content active">
+            <div class="stats">
+                <div class="stat-box">
+                    <h3>שימוש היום</h3>
+                    <p id="totalTime" class="time-display">0 שעות 0 דקות</p>
+                </div>
+                
+                <div class="stat-box">
+                    <h3>הגבלה יומית</h3>
+                    <p id="dailyLimit" class="time-display">2 שעות 0 דקות</p>
+                </div>
+            </div>
+
+            <div class="current-site">
+                <h3>אתר נוכחי</h3>
+                <p id="currentSite">---</p>
+                <p id="siteTime">0 דקות</p>
+            </div>
+
+            <div id="warning" class="warning" style="display: none;">
+                ⚠️ אתה מתקרב להגבלה היומית!
+            </div>
+        </div>
+
+        <!-- TAB: אתרים מובילים -->
+        <div id="sites" class="tab-content">
+            <h3>אתרים מובילים היום</h3>
+            <div id="topSites">
+                <p style="text-align: center; color: #999;">טעינה...</p>
+            </div>
+        </div>
+
+        <!-- TAB: דוחות -->
+        <div id="reports" class="tab-content">
+            <h3>סיכום שבועי</h3>
+            <div id="weeklyReport">
+                <p style="text-align: center; color: #999;">טעינה...</p>
+            </div>
+            
+            <h3 style="margin-top: 20px;">סיכום חודשי</h3>
+            <div id="monthlyReport">
+                <p style="text-align: center; color: #999;">טעינה...</p>
+            </div>
+            
+            <button id="downloadBtn" class="btn download-btn">💾 הורד דוח (CSV)</button>
+        </div>
+
+        <div class="buttons">
+            <button id="resetBtn" class="btn btn-secondary">אפס היום</button>
+            <button id="settingsBtn" class="btn btn-primary">⚙️ הגדרות</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

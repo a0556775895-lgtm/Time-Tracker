@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דוחות מפורטים</title>
+    <link rel="stylesheet" href="reports.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📈 דוחות מפורטים</h1>
+        
+        <div class="filter-section">
+            <button class="filter-btn active" data-filter="week">שבועי</button>
+            <button class="filter-btn" data-filter="month">חודשי</button>
+            <button class="filter-btn" data-filter="three-month">3 חודשים</button>
+            <button class="filter-btn" data-filter="all">הכל</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h4>סה"כ שימוש</h4>
+                <p class="stat-value" id="totalUsage">0 שעות</p>
+            </div>
+            <div class="stat-card">
+                <h4>ממוצע ביומי</h4>
+                <p class="stat-value" id="avgUsage">0 שעות</p>
+            </div>
+            <div class="stat-card">
+                <h4>היום החד ביותר</h4>
+                <p class="stat-value" id="maxDay">0 שעות</p>
+            </div>
+            <div class="stat-card">
+                <h4>היום הקל ביותר</h4>
+                <p class="stat-value" id="minDay">0 שעות</p>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h3>מגמה יומית</h3>
+            <canvas id="trendChart"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <h3>הפצת אתרים</h3>
+            <canvas id="siteChart"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <h3>השוואה בין תקופות</h3>
+            <div id="comparisonContainer">
+                <canvas id="comparisonChart"></canvas>
+            </div>
+        </div>
+
+        <div class="insights-section">
+            <h3>💡 תובנות</h3>
+            <div id="insights">
+                <p style="text-align: center; color: #999;">טעינה...</p>
+            </div>
+        </div>
+
+        <div class="export-section">
+            <button id="exportBtn" class="btn btn-primary">📥 הורד דוח (CSV)</button>
+            <button id="backBtn" class="btn btn-secondary">← חזור</button>
+        </div>
+    </div>
+
+    <script src="reports.js"></script>
+</body>
+</html>

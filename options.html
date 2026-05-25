@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הגדרות עוקב זמן</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ הגדרות עוקב זמן</h1>
+        
+        <div class="settings-section">
+            <h3>הגבלת השימוש היומית</h3>
+            <div class="setting-item">
+                <label for="limitTime">משך הזמן:</label>
+                <input type="time" id="limitTime" value="02:00">
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>שעת האיפוס היומי</h3>
+            <div class="setting-item">
+                <label for="resetTime">איפוס ב:</label>
+                <input type="time" id="resetTime" value="00:00">
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>התראות</h3>
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enableNotifications" checked>
+                    הפעל התראות כשהגעת להגבלה
+                </label>
+            </div>
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="enableWarning" checked>
+                    הצג אזהרה בـ 80% מההגבלה
+                </label>
+            </div>
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="showOverlay" checked>
+                    הצג חלונית קטנה בפינת הדפדפן
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>🚫 אתרים חסומים מתקדמים</h3>
+            
+            <div class="setting-item">
+                <label for="newBlockedDomain">הוסף אתר לחסימה:</label>
+                <div class="input-group">
+                    <input type="text" id="newBlockedDomain" placeholder="example.com">
+                    <button id="addBlockedBtn" class="btn-small">➕ הוסף</button>
+                </div>
+            </div>
+
+            <div id="blockedSitesList" class="blocked-sites-list">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Modal for advanced settings -->
+            <div id="blockModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h4>הגדרות חסימה מתקדמות</h4>
+                    
+                    <div class="modal-item">
+                        <label for="blockMessage">הודעה מותאמת אישית:</label>
+                        <textarea id="blockMessage" placeholder="בחרת לחסום את האתר הזה"></textarea>
+                    </div>
+
+                    <div class="modal-item">
+                        <label>
+                            <input type="checkbox" id="enableUnblockTime">
+                            אפשר unblock זמני
+                        </label>
+                    </div>
+
+                    <div class="modal-item" style="display: none;" id="unblockTimeGroup">
+                        <label for="unblockDuration">זמן unblock (דקות):</label>
+                        <input type="number" id="unblockDuration" min="1" max="120" value="5">
+                    </div>
+
+                    <div class="modal-item">
+                        <label>
+                            <input type="checkbox" id="enableConditionalBlock">
+                            חסימה מותנית
+                        </label>
+                    </div>
+
+                    <div class="modal-item" style="display: none;" id="conditionalGroup">
+                        <label for="blockStartTime">חסום מ:</label>
+                        <input type="time" id="blockStartTime" value="09:00">
+                        
+                        <label for="blockEndTime" style="margin-top: 10px;">עד:</label>
+                        <input type="time" id="blockEndTime" value="17:00">
+                    </div>
+
+                    <div class="modal-buttons">
+                        <button id="saveBlockSettingsBtn" class="btn btn-primary">💾 שמור</button>
+                        <button id="cancelBlockBtn" class="btn btn-secondary">ביטול</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="saveBtn" class="btn btn-primary">💾 שמור הגדרות</button>
+            <button id="resetBtn" class="btn btn-secondary">חזור לברירות מחדל</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;">
+            ✓ ההגדרות נשמרו בהצלחה!
+        </div>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>
