@@ -1,175 +1,132 @@
-# ⏱️ Time Tracker - Chrome Extension
+# Time Tracker Chrome Extension
 
 **Track your daily browser usage with alerts and limits**
 
 ## Features 📋
 
 - ✅ Real-time tracking of browser usage
-- ✅ Per-site time tracking
+- ✅ Per-site time tracking with live updates
 - ✅ Customizable daily time limits
 - ✅ Visual warnings when approaching limits
-- ✅ Settings page for fine-tuning
+- ✅ Settings page for configuration
 - ✅ Daily reset at midnight
-- ✅ **Blocked sites with advanced options**
+- ✅ **Advanced Site Blocking**
   - Custom block messages
-  - Temporary unblock duration (configurable)
-  - Conditional blocking (specific times only)
-- ✅ **Advanced Visual Reports** 📈
-  - Daily usage trends chart
-  - Site distribution pie chart
+  - Temporary unblock duration
+  - Conditional blocking (specific times)
+- ✅ **Visual Reports** 📈
+  - Daily usage trends
+  - Site distribution charts
   - Week-to-week comparison
-  - Smart insights and statistics
-  - CSV export functionality
+  - Usage statistics
+  - CSV export
 
 ## Installation 🚀
 
-### Method 1: Developer Mode (Recommended for Development)
-
-1. **Open Chrome** and go to `chrome://extensions/`
-2. **Toggle "Developer mode"** (top-right corner)
-3. Click **"Load unpacked"**
-4. Select the `mine-exte` folder
-5. The extension should now appear in your extensions list
-
-### Method 2: Package as .crx (For Distribution)
-1. Go to `chrome://extensions/`
-2. Right-click the extension
-3. Click "Pack extension"
+1. **Download or clone** this repository
+2. **Open Chrome** and go to `chrome://extensions/`
+3. **Enable "Developer mode"** (top-right corner)
+4. Click **"Load unpacked"**
+5. Select the project folder
+6. The extension should now appear in your extensions list
 
 ## How It Works 🔍
 
-### Main Components
+### Core Components
 
 - **manifest.json** - Extension configuration
-- **popup.html/css/js** - Popup window showing stats
-- **background.js** - Tracks active tab and accumulates time
+- **popup.html/css/js** - Main interface showing stats
+- **background.js** - Tracks active tabs and time
 - **options.html/css/js** - Settings page
-- **content.js** - Runs on every webpage
+- **content.js** - Displays floating timer widget
+- **reports.html/css/js** - Advanced analytics
 
 ### Tracking Logic
 
-1. Extension watches for tab switches
-2. When tab becomes inactive, time is recorded
-3. Time is stored per domain (e.g., youtube.com)
-4. Daily limit is compared against total usage
-5. Notifications trigger when limit exceeded
+1. Monitors active tab and window focus
+2. Pauses tracking when window loses focus or is minimized
+3. Resumes tracking when returning to active browsing
+4. Stores time per domain and total daily usage
+5. Triggers notifications when limits are exceeded
 
-## Usage 👨‍💻
+## Usage 👨💻
 
 ### Basic Usage
-1. **Click the extension icon** to see today's usage
-2. **View tabs**:
-   - 📊 **היום** (Today) - Current day stats
-   - 🌐 **אתרים מובילים** (Top Sites) - Most visited domains
-   - 📈 **דוחות** (Reports) - Weekly/monthly summaries
+1. **Click the extension icon** to view today's usage
+2. **Navigate tabs**:
+   - **Today** - Current day statistics
+   - **Top Sites** - Most visited domains
+   - **Reports** - Detailed analytics
 
 ### Advanced Features
 
 #### 📈 Visual Reports
-1. Click the **📈 דוחות מלאים** button in popup
-2. View detailed statistics:
-   - **Daily Trends** - Line chart of usage over time
-   - **Site Distribution** - Pie chart showing top sites
-   - **Week Comparison** - Bar chart comparing weeks
-   - **Smart Insights** - AI-generated suggestions
-3. Filter by period: Week, Month, 3 Months, or All
-4. Export data as CSV
+- **Daily Trends** - Usage patterns over time
+- **Site Distribution** - Time spent per website
+- **Comparative Analysis** - Week-to-week comparisons
+- **Export Data** - Download usage data as CSV
 
-#### 🚫 Advanced Blocked Sites
-1. Go to **⚙️ Settings**
-2. In **אתרים חסומים מתקדמים** section:
-   - Enter domain name (e.g., `youtube.com`)
-   - Click **➕ הוסף** to add
-3. Click **⚙️ ערוך** to configure:
-   - **Custom Block Message** - Show custom message when site is blocked
-   - **Unblock Duration** - Allow temporary unblock (e.g., 5 minutes)
-   - **Conditional Blocking** - Block only during specific hours (e.g., 9 AM - 5 PM)
-4. Changes save automatically
+#### 🚫 Site Blocking
+- **Custom Messages** - Personalized block notifications
+- **Temporary Unblock** - Allow brief access periods
+- **Time-based Blocking** - Block sites during specific hours
 
 ### Settings ⚙️
-1. **Limit Time** - Set maximum daily usage
-2. **Reset Time** - Choose when to reset daily counter
-3. **Notifications** - Enable/disable alerts
-4. **Warning** - Show warning at 80% of limit
-5. **Blocked Sites** - Add advanced blocking rules
-
-## Customization 🎨
-
-Edit CSS files to:
-- **popup.css** - Change popup colors and layout
-- **options.css** - Customize settings page
-- **reports.css** - Modify report visualizations
-
-Edit JS files to:
-- **popup.js** - Add new tracking features
-- **background.js** - Modify tracking logic
-- **reports.js** - Change analytics calculations
-
-## Default Settings
-
-- **Daily Limit**: 2 hours
-- **Notifications**: Enabled
-- **Warning Threshold**: 80% of limit
-
-## Testing Tips 🧪
-
-1. Open popup frequently to see live updates
-2. Switch between tabs to test tracking
-3. Use DevTools: 
-   - Right-click extension → "Inspect popup"
-   - Right-click extension → "Background page"
-4. Check stored data in DevTools → Application → Local Storage
+- **Daily Limit** - Set maximum usage time
+- **Reset Schedule** - Configure daily reset time
+- **Notifications** - Enable/disable alerts
+- **Warning Threshold** - Set early warning percentage
+- **Blocked Sites** - Manage site restrictions
 
 ## File Structure
 
 ```
-mine-exte/
-├── manifest.json          # Extension config
-├── popup.html/css/js      # Popup interface
-├── background.js          # Tab tracking logic
-├── content.js             # Content script
-├── options.html/css/js    # Settings page
-├── images/                # Icons (placeholder)
-└── README.md              # This file
+time-tracker/
+├── manifest.json          # Extension configuration
+├── popup.html/css/js      # Main popup interface
+├── background.js          # Core tracking logic
+├── content.js             # Floating timer widget
+├── options.html/css/js    # Settings interface
+├── reports.html/css/js    # Analytics dashboard
+├── blocked.html/js        # Block page
+├── alert-window.html/js   # Limit alerts
+├── images/                # Extension icons
+└── README.md              # Documentation
 ```
 
-## Known Limitations ⚠️
 
-- Icon images need to be added manually (use SVG or PNG)
-- Blocked sites feature not yet functional
-- Background tracking may have slight delays
-- Service worker restarts may cause time loss
+### Testing
+1. Load extension in developer mode
+2. Open DevTools for debugging:
+   - Right-click extension → "Inspect popup"
+   - Check "Service Worker" for background script
+3. Monitor console for errors
+4. Test tracking by switching tabs and windows
 
-## Future Improvements 🔮
+### Customization
+- **CSS files** - Modify appearance and styling
+- **JavaScript files** - Add features or change behavior
+- **Storage** - Uses Chrome's local and sync storage APIs
 
-- [ ] Export usage statistics
-- [ ] Per-app tracking (Windows/Mac)
-- [ ] Cloud sync across devices
-- [ ] Pomodoro timer integration
-- [ ] Dark mode
-- [ ] Weekly/monthly reports
+## Technical Details
 
-## Troubleshooting 🔧
+- **Manifest Version**: 3 (latest Chrome extension standard)
+- **Permissions**: tabs, storage, alarms, notifications, windows
+- **Storage**: Chrome local storage for data, sync storage for settings
+- **Architecture**: Service worker background script with content scripts
 
-**Extension not tracking?**
-- Check DevTools console for errors
-- Ensure "Developer mode" is enabled
-- Reload extension (toggle on/off)
+## Contributing 🤝
 
-**Popup not updating?**
-- Click the popup to refresh
-- Check if background worker is running
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-**Settings not saving?**
-- Use Chrome sync: chrome.storage.sync
-- Clear browser cache
+## License
 
-## Resources 📚
-
-- [Chrome Extensions Docs](https://developer.chrome.com/docs/extensions/)
-- [Manifest V3 Guide](https://developer.chrome.com/docs/extensions/mv3/)
-- [Service Workers](https://developer.chrome.com/docs/extensions/mv3/service_workers/)
+MIT License - feel free to use and modify as needed.
 
 ---
 
-**Made with ❤️ for productivity nerds**
+**Built for productivity and focus** ⚡
