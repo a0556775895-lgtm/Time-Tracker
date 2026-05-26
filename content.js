@@ -71,12 +71,13 @@ function init() {
 }
 
 chrome.storage.onChanged.addListener((changes, ns) => {
+    if (!isContextValid()) return;
     if (ns !== 'sync' || !('showOverlay' in changes)) return;
     changes.showOverlay.newValue === false ? removeWidget() : init();
 });
 
 window.addEventListener('beforeunload', removeWidget, { once: true });
 
-init();
+try { init(); } catch (e) {}
 
 } // end guard

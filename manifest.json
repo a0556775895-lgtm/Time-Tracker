@@ -10,8 +10,7 @@
     "notifications",
     "windows",
     "scripting",
-    "webNavigation",
-    "idle"
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -37,7 +36,7 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["timer.html", "alert-window.html", "blocked.html", "blocked.js"],
+      "resources": ["alert-window.html", "blocked.html", "blocked.js"],
       "matches": ["<all_urls>"]
     }
   ]

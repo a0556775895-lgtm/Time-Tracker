@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>דוחות מפורטים</title>
     <link rel="stylesheet" href="reports.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="chart.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -38,12 +38,17 @@
         </div>
 
         <div class="chart-section">
+            <h3>אתרים מובילים היום</h3>
+            <div id="topSitesList"></div>
+        </div>
+
+        <div class="chart-section">
             <h3>מגמה יומית</h3>
             <canvas id="trendChart"></canvas>
         </div>
 
         <div class="chart-section">
-            <h3>הפצת אתרים</h3>
+            <h3>התפלגות זמן לפי אתר</h3>
             <canvas id="siteChart"></canvas>
         </div>
 

@@ -20,22 +20,21 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadReports() {
-    chrome.storage.local.get(['dailyHistory'], (result) => {
+    chrome.storage.local.get(['dailyHistory', 'siteTimes', 'totalTime'], (result) => {
         const history = result.dailyHistory || [];
-        
-        // Filter data based on selected period
         const filteredData = filterDataByPeriod(history, currentFilter);
-        
-        // Update stats
-        updateStats(filteredData);
-        
-        // Update charts
-        updateTrendChart(filteredData, history);
-        updateSiteChart(filteredData);
+
+        // Add today's live data
+        const today = new Date().toISOString().split('T')[0];
+        const todayData = { date: today, totalTime: result.totalTime || 0, siteTimes: result.siteTimes || {} };
+        const dataWithToday = [...filteredData.filter(d => d.date !== today), todayData];
+
+        updateStats(dataWithToday);
+        updateTrendChart(dataWithToday);
+        updateSiteChart(dataWithToday);
+        updateTopSitesList(result.siteTimes || {});
         updateComparisonChart(history);
-        
-        // Generate insights
-        generateInsights(filteredData, history);
+        generateInsights(dataWithToday, history);
     });
 }
 
@@ -87,7 +86,20 @@ function updateStats(data) {
     document.getElementById('minDay').textContent = min;
 }
 
-function updateTrendChart(filteredData, allHistory) {
+function updateTopSitesList(siteTimes) {
+    const sites = Object.entries(siteTimes)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+    const container = document.getElementById('topSitesList');
+    container.innerHTML = sites.length > 0
+        ? sites.map(([domain, time]) =>
+            `<div class="site-item"><span class="site-domain">${domain}</span><span class="site-time">${formatTime(time)}</span></div>`
+          ).join('')
+        : '<p style="text-align:center;color:#999;">אין נתונים עדיין</p>';
+}
+
+function updateTrendChart(filteredData) {
     const labels = filteredData.map(item => {
         const date = new Date(item.date);
         return date.toLocaleDateString('he-IL', { month: 'short', day: 'numeric' });
@@ -133,42 +145,41 @@ function updateTrendChart(filteredData, allHistory) {
 }
 
 function updateSiteChart(data) {
-    // Aggregate site times
     const siteTotals = {};
     data.forEach(item => {
-        const siteTimes = item.siteTimes || {};
-        Object.entries(siteTimes).forEach(([domain, time]) => {
+        Object.entries(item.siteTimes || {}).forEach(([domain, time]) => {
             siteTotals[domain] = (siteTotals[domain] || 0) + time;
         });
     });
-    
-    // Sort and get top 8
-    const topSites = Object.entries(siteTotals)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8);
-    
-    const labels = topSites.map(([domain]) => domain);
-    const values = topSites.map(([, time]) => Math.round(time / 1000 / 60));
-    
-    const colors = [
-        '#667eea', '#764ba2', '#f093fb', '#4facfe',
-        '#00f2fe', '#43e97b', '#fa709a', '#fee140'
-    ];
-    
+
+    const sorted = Object.entries(siteTotals).sort((a, b) => b[1] - a[1]);
+    const top5 = sorted.slice(0, 5);
+    const otherTime = sorted.slice(5).reduce((sum, [, t]) => sum + t, 0);
+
+    const labels = top5.map(([domain]) => domain);
+    const values = top5.map(([, time]) => Math.round(time / 1000 / 60));
+
+    if (otherTime > 0) {
+        labels.push('אחר');
+        values.push(Math.round(otherTime / 1000 / 60));
+    }
+
+    const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#ccc'];
     const ctx = document.getElementById('siteChart').getContext('2d');
-    
+
     if (siteChart) {
         siteChart.data.labels = labels;
         siteChart.data.datasets[0].data = values;
+        siteChart.data.datasets[0].backgroundColor = colors.slice(0, labels.length);
         siteChart.update();
     } else {
         siteChart = new Chart(ctx, {
-            type: 'doughnut',
+            type: 'pie',
             data: {
-                labels: labels,
+                labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: colors.slice(0, topSites.length),
+                    backgroundColor: colors.slice(0, labels.length),
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -176,7 +187,16 @@ function updateSiteChart(data) {
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { position: 'bottom', rtl: true }
+                    legend: { position: 'bottom', rtl: true },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+                                return ` ${ctx.label}: ${ctx.parsed} דק (${pct}%)`;
+                            }
+                        }
+                    }
                 }
             }
         });
