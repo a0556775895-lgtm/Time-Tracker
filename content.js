@@ -18,18 +18,43 @@ function renderTime(ms) {
         `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
+function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
 function tick() {
-    if (!isContextValid()) {
-        clearInterval(intervalId);
-        intervalId = null;
-        removeWidget();
-        return;
-    }
+    if (!isContextValid()) { clearInterval(intervalId); removeWidget(); return; }
     if (!timerWidget || !document.body.contains(timerWidget)) return;
     try {
         chrome.runtime.sendMessage({ action: 'getTime' }, (response) => {
             if (chrome.runtime.lastError || !response) return;
-            renderTime(response.totalTime || 0);
+            const totalMs = response.totalTime || 0;
+            const totalStr = formatTime(totalMs);
+
+            chrome.storage.sync.get(['showSiteTime'], (syncResult) => {
+                if (!syncResult.showSiteTime && syncResult.showSiteTime !== undefined) {
+                    timerWidget.textContent = totalStr;
+                    return;
+                }
+                // Show site time with live tracking
+                chrome.storage.local.get(['siteTimes', 'trackingStart'], (local) => {
+                    const hostname = location.hostname;
+                    const siteName = document.title || hostname;
+                    let siteMs = (local.siteTimes || {})[hostname] || 0;
+                    
+                    // Add current session time if tracking is active
+                    if (local.trackingStart) {
+                        siteMs += Date.now() - local.trackingStart;
+                    }
+                    
+                    timerWidget.innerHTML =
+                        `<div>${totalStr}</div><div style="font-size:11px;color:#888;margin-top:2px">${siteName ? siteName + ': ' + formatTime(siteMs) : ''}</div>`;
+                });
+            });
         });
     } catch (e) {
         clearInterval(intervalId);

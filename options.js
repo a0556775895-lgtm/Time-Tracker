@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentEditingDomain = null;
 
 function loadSettings() {
-    chrome.storage.sync.get(['limitHours', 'limitMinutes', 'resetHour', 'enableNotifications', 'enableWarning', 'showOverlay'], (result) => {
+    chrome.storage.sync.get(['limitHours', 'limitMinutes', 'resetHour', 'enableNotifications', 'enableWarning', 'showOverlay', 'showSiteTime'], (result) => {
         const hours = String(result.limitHours || 2).padStart(2, '0');
         const minutes = String(result.limitMinutes || 0).padStart(2, '0');
         document.getElementById('limitTime').value = `${hours}:${minutes}`;
@@ -22,6 +22,7 @@ function loadSettings() {
         document.getElementById('enableNotifications').checked = result.enableNotifications !== false;
         document.getElementById('enableWarning').checked = result.enableWarning !== false;
         document.getElementById('showOverlay').checked = result.showOverlay !== false;
+        document.getElementById('showSiteTime').checked = result.showSiteTime !== false;
     });
 }
 
@@ -207,7 +208,8 @@ function saveSettings() {
             resetHour,
             enableNotifications: document.getElementById('enableNotifications').checked,
             enableWarning: document.getElementById('enableWarning').checked,
-            showOverlay: document.getElementById('showOverlay').checked
+            showOverlay: document.getElementById('showOverlay').checked,
+            showSiteTime: document.getElementById('showSiteTime').checked
         });
 
         chrome.storage.local.set({ dailyLimit: (limitHours * 60 + limitMinutes) * 60 * 1000 });
@@ -233,7 +235,8 @@ function resetSettings() {
         resetHour: 0,
         enableNotifications: true,
         enableWarning: true,
-        showOverlay: true
+        showOverlay: true,
+        showSiteTime: true
     });
     chrome.storage.local.set({ dailyLimit: 2 * 60 * 60 * 1000 });
     loadSettings();
