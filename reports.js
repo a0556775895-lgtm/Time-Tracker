@@ -1,7 +1,7 @@
 let trendChart = null;
 let siteChart = null;
 let comparisonChart = null;
-let currentFilter = 'week';
+let currentFilter = 'today';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadReports();
@@ -43,6 +43,9 @@ function filterDataByPeriod(history, period) {
     let startDate = new Date();
     
     switch(period) {
+        case 'today':
+            startDate.setHours(0, 0, 0, 0);
+            break;
         case 'week':
             startDate.setDate(now.getDate() - 7);
             break;
@@ -269,7 +272,7 @@ function generateInsights(filteredData, allHistory) {
     const maxDay = filteredData.reduce((max, item) => 
         (item.totalTime > max.totalTime) ? item : max
     );
-    insights.push(`🏃 הנ"ך היותר עמוס היה ${new Date(maxDay.date).toLocaleDateString('he-IL')} עם ${formatTime(maxDay.totalTime)}`);
+    insights.push(`🏃 היום העמוס ביותר היה ${new Date(maxDay.date).toLocaleDateString('he-IL')} עם ${formatTime(maxDay.totalTime)}`);
     
     // Insight 3: Top site
     let topSite = null;
@@ -283,7 +286,7 @@ function generateInsights(filteredData, allHistory) {
         });
     });
     if (topSite) {
-        insights.push(`🌐 האתר המובילי הוא ${topSite} עם ${formatTime(maxTime)}`);
+        insights.push(`🌐 האתר המוביל הוא ${topSite} עם ${formatTime(maxTime)}`);
     }
     
     // Insight 4: Consistency

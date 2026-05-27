@@ -3,6 +3,8 @@ window.__timeTrackerLoaded = true;
 
 let timerWidget = null;
 let intervalId = null;
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
 
 function isContextValid() {
     try { return !!(chrome && chrome.runtime && chrome.runtime.id); } catch (e) { return false; }
@@ -26,6 +28,23 @@ function formatTime(ms) {
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
+function applyWarningStyle(warning) {
+    if (!timerWidget) return;
+    if (warning === 'exceeded') {
+        timerWidget.style.background = '#ff6b6b';
+        timerWidget.style.color = 'white';
+        timerWidget.style.borderColor = '#ff5252';
+    } else if (warning === 'warning') {
+        timerWidget.style.background = '#fff3cd';
+        timerWidget.style.color = '#856404';
+        timerWidget.style.borderColor = '#ffc107';
+    } else {
+        timerWidget.style.background = 'white';
+        timerWidget.style.color = '#333';
+        timerWidget.style.borderColor = '#333';
+    }
+}
+
 function tick() {
     if (!isContextValid()) { clearInterval(intervalId); removeWidget(); return; }
     if (!timerWidget || !document.body.contains(timerWidget)) return;
@@ -37,22 +56,19 @@ function tick() {
 
             chrome.storage.sync.get(['showSiteTime'], (syncResult) => {
                 if (!syncResult.showSiteTime && syncResult.showSiteTime !== undefined) {
-                    timerWidget.textContent = totalStr;
+                    chrome.storage.local.get(['widgetWarning'], (local) => {
+                        applyWarningStyle(local.widgetWarning || 'normal');
+                        timerWidget.textContent = totalStr;
+                    });
                     return;
                 }
-                // Show site time with live tracking
-                chrome.storage.local.get(['siteTimes', 'trackingStart'], (local) => {
+                chrome.storage.local.get(['siteTimes', 'trackingStart', 'widgetWarning'], (local) => {
+                    applyWarningStyle(local.widgetWarning || 'normal');
                     const hostname = location.hostname;
-                    const siteName = document.title || hostname;
                     let siteMs = (local.siteTimes || {})[hostname] || 0;
-                    
-                    // Add current session time if tracking is active
-                    if (local.trackingStart) {
-                        siteMs += Date.now() - local.trackingStart;
-                    }
-                    
+                    if (local.trackingStart) siteMs += Date.now() - local.trackingStart;
                     timerWidget.innerHTML =
-                        `<div>${totalStr}</div><div style="font-size:11px;color:#888;margin-top:2px">${siteName ? siteName + ': ' + formatTime(siteMs) : ''}</div>`;
+                        `<div>${totalStr}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${hostname ? hostname + ': ' + formatTime(siteMs) : ''}</div>`;
                 });
             });
         });
@@ -69,22 +85,68 @@ function createWidget() {
     timerWidget.id = 'time-tracker-widget';
     timerWidget.style.cssText = `
         position: fixed; bottom: 20px; right: 20px;
-        background: white; border: 2px solid #333;
+        background: rgba(255, 255, 255, 0.7); border: 2px solid #333;
         padding: 10px 15px; border-radius: 5px;
         font-family: monospace; font-size: 14px;
         z-index: 999999; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         color: #333; min-width: 150px; text-align: center;
+        backdrop-filter: blur(5px); cursor: move;
     `;
     timerWidget.textContent = '⏱ ...';
+    
+    // Add drag functionality
+    timerWidget.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+    
     try { document.body.appendChild(timerWidget); } catch (e) { return; }
     intervalId = setInterval(tick, 1000);
     tick();
 }
 
+function startDrag(e) {
+    isDragging = true;
+    const rect = timerWidget.getBoundingClientRect();
+    dragOffset.x = e.clientX - rect.left;
+    dragOffset.y = e.clientY - rect.top;
+    timerWidget.style.transition = 'none';
+    e.preventDefault();
+}
+
+function drag(e) {
+    if (!isDragging) return;
+    const x = e.clientX - dragOffset.x;
+    const y = e.clientY - dragOffset.y;
+    
+    // Keep widget within viewport
+    const maxX = window.innerWidth - timerWidget.offsetWidth;
+    const maxY = window.innerHeight - timerWidget.offsetHeight;
+    
+    const clampedX = Math.max(0, Math.min(x, maxX));
+    const clampedY = Math.max(0, Math.min(y, maxY));
+    
+    timerWidget.style.left = clampedX + 'px';
+    timerWidget.style.top = clampedY + 'px';
+    timerWidget.style.right = 'auto';
+    timerWidget.style.bottom = 'auto';
+}
+
+function stopDrag() {
+    if (isDragging) {
+        isDragging = false;
+        timerWidget.style.transition = '';
+    }
+}
+
 function removeWidget() {
     clearInterval(intervalId);
     intervalId = null;
-    if (timerWidget) { timerWidget.remove(); timerWidget = null; }
+    if (timerWidget) {
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', stopDrag);
+        timerWidget.remove();
+        timerWidget = null;
+    }
 }
 
 function init() {

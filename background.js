@@ -47,10 +47,28 @@ function pauseTracking() {
     });
 }
 
+let warningShown = false;
+
 function checkLimitExceeded(totalTime) {
     chrome.storage.local.get(['dailyLimit'], (r) => {
         const limit = r.dailyLimit || 2 * 60 * 60 * 1000;
-        if (totalTime > limit && Date.now() > alertDismissedUntil && !alertShown) {
+        const pct = totalTime / limit;
+
+        chrome.storage.sync.get(['enableWarning'], (s) => {
+            if (s.enableWarning !== false) {
+                if (pct >= 1) {
+                    chrome.storage.local.set({ widgetWarning: 'exceeded' });
+                } else if (pct >= 0.8 && !warningShown) {
+                    warningShown = true;
+                    chrome.storage.local.set({ widgetWarning: 'warning' });
+                } else if (pct < 0.8) {
+                    warningShown = false;
+                    chrome.storage.local.set({ widgetWarning: 'normal' });
+                }
+            }
+        });
+
+        if (pct >= 1 && Date.now() > alertDismissedUntil && !alertShown) {
             showLimitExceededAlert();
         }
     });
@@ -289,6 +307,21 @@ function showLimitExceededAlert() {
 
     setTimeout(() => { alertShown = false; }, 30 * 60 * 1000);
 }
+
+// ── Idle / Sleep Detection ───────────────────────────────────────────────────
+
+// Detect after 60 seconds of inactivity (screen off / sleep)
+chrome.idle.setDetectionInterval(60);
+
+chrome.idle.onStateChanged.addListener((state) => {
+    if (state === 'idle' || state === 'locked') {
+        // Screen off or machine locked/sleeping — pause tracking
+        pauseTracking();
+    } else if (state === 'active') {
+        // User is back — resume tracking
+        startTracking();
+    }
+});
 
 // ── Settings Changes ──────────────────────────────────────────────────────────
 

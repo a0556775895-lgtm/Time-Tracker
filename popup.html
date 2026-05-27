@@ -8,36 +8,35 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 עוקב זמן</h1>
 
-        <div class="stats">
-            <div class="stat-box">
-                <h3>שימוש היום</h3>
-                <p id="totalTime" class="time-display">0 דקות</p>
-            </div>
-            <div class="stat-box">
-                <h3>הגבלה יומית</h3>
-                <p id="dailyLimit" class="time-display">2 שעות</p>
+        <div class="header">
+            <span class="header-title">⏱ עוקב זמן</span>
+            <button id="settingsBtn" class="settings-btn">⚙️ הגדרות</button>
+        </div>
+
+        <div class="ring-section">
+            <svg class="ring" viewBox="0 0 120 120">
+                <circle class="ring-bg" cx="60" cy="60" r="50"/>
+                <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="50"
+                    stroke-dasharray="314" stroke-dashoffset="314"/>
+            </svg>
+            <div class="ring-content">
+                <div id="totalTime" class="ring-time">00:00</div>
+                <div id="usagePct" class="ring-pct">0%</div>
+                <div id="dailyLimit" class="ring-limit">מתוך 2 שעות</div>
             </div>
         </div>
 
-        <div class="current-site">
-            <h3>אתר נוכחי</h3>
-            <p id="currentSite">---</p>
-            <p id="siteTime">0 דקות</p>
-        </div>
-
-        <div id="warning" class="warning" style="display: none;">
-            ⚠️ אתה מתקרב להגבלה היומית!
+        <div id="warning" class="warning" style="display:none;">
+            ⚠️ מתקרבים להגבלה היומית!
         </div>
 
         <div class="buttons">
-            <button id="resetBtn" class="btn btn-secondary">אפס היום</button>
+            <button id="resetBtn" class="btn btn-secondary">🔄 אפס</button>
             <button id="reportsBtn" class="btn btn-primary">📈 דוחות</button>
-            <button id="settingsBtn" class="btn btn-primary">⚙️ הגדרות</button>
         </div>
-    </div>
 
+    </div>
     <script src="popup.js"></script>
 </body>
 </html>

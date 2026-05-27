@@ -10,7 +10,8 @@
     "notifications",
     "windows",
     "scripting",
-    "webNavigation"
+    "webNavigation",
+    "idle"
   ],
   "host_permissions": [
     "<all_urls>"
