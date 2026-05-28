@@ -55,6 +55,19 @@
         </div>
 
         <div class="settings-section">
+            <h3>⏱️ הגבלת זמן לפי אתר</h3>
+            <div class="setting-item">
+                <label for="newLimitDomain">אתר:</label>
+                <div class="input-group">
+                    <input type="text" id="newLimitDomain" placeholder="youtube.com">
+                    <input type="time" id="newLimitTime" value="01:00">
+                    <button id="addSiteLimitBtn" class="btn-small">➕ הוסף</button>
+                </div>
+            </div>
+            <div id="siteLimitsList" class="blocked-sites-list"></div>
+        </div>
+
+        <div class="settings-section">
             <h3>🚫 אתרים חסומים מתקדמים</h3>
             
             <div class="setting-item">

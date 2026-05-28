@@ -31,9 +31,23 @@
             ⚠️ מתקרבים להגבלה היומית!
         </div>
 
+        <div id="streakBar" class="streak-bar" style="display:none;"></div>
+
+        <div id="pauseBar" class="pause-bar" style="display:none;">
+            ⏸ מעקב מושהה — <span id="pauseCountdown"></span>
+            <button id="resumeBtn" class="btn-resume">המשך עכשיו</button>
+        </div>
+
         <div class="buttons">
             <button id="resetBtn" class="btn btn-secondary">🔄 אפס</button>
+            <button id="pauseBtn" class="btn btn-pause">⏸ השהה</button>
             <button id="reportsBtn" class="btn btn-primary">📈 דוחות</button>
+        </div>
+
+        <div id="pauseOptions" class="pause-options" style="display:none;">
+            <button class="pause-time-btn" data-minutes="15">15 דק'</button>
+            <button class="pause-time-btn" data-minutes="30">30 דק'</button>
+            <button class="pause-time-btn" data-minutes="60">שעה</button>
         </div>
 
     </div>

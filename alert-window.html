@@ -109,6 +109,21 @@
             background: #ff5252;
             transform: translateY(-2px);
         }
+
+        .disable-btn {
+            background: #333;
+            color: #aaa;
+            font-size: 13px;
+            margin-top: 10px;
+            padding: 10px;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .disable-btn:hover {
+            background: #444;
+            color: #fff;
+        }
         
         .snooze-options {
             display: flex;
@@ -164,6 +179,7 @@
             <button class="time-btn" data-minutes="30">30 דקות</button>
             <button class="time-btn" data-minutes="60">שעה</button>
         </div>
+        <button class="disable-btn" id="disableBtn">🔕 כבה התרעות להיום</button>
     </div>
     
     <script src="alert-window.js"></script>

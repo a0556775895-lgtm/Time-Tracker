@@ -95,11 +95,39 @@ function updateTopSitesList(siteTimes) {
         .slice(0, 10);
 
     const container = document.getElementById('topSitesList');
-    container.innerHTML = sites.length > 0
-        ? sites.map(([domain, time]) =>
-            `<div class="site-item"><span class="site-domain">${domain}</span><span class="site-time">${formatTime(time)}</span></div>`
-          ).join('')
-        : '<p style="text-align:center;color:#999;">אין נתונים עדיין</p>';
+    if (!sites.length) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">אין נתונים עדיין</p>';
+        return;
+    }
+
+    const maxTime = sites[0][1];
+    const colors = ['#667eea','#764ba2','#f093fb','#4facfe','#43e97b','#fa709a','#fee140','#a18cd1','#fda085','#84fab0'];
+
+    container.innerHTML = `
+        <table class="sites-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>אתר</th>
+                    <th>זמן</th>
+                    <th>אחוז</th>
+                    <th style="width:35%"></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${sites.map(([domain, time], i) => {
+                    const pct = Math.round(time / maxTime * 100);
+                    const totalPct = Math.round(time / Object.values(siteTimes).reduce((a,b)=>a+b,0) * 100);
+                    return `<tr>
+                        <td><span class="rank-badge" style="background:${colors[i]}">${i+1}</span></td>
+                        <td class="domain-cell">${domain}</td>
+                        <td class="time-cell">${formatTime(time)}</td>
+                        <td class="pct-cell">${totalPct}%</td>
+                        <td><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[i]}"></div></div></td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>`;
 }
 
 function updateTrendChart(filteredData) {

@@ -1,19 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     setupBlockedSitesUI();
+    setupSiteLimitsUI();
     setupModal();
 
     document.getElementById('saveBtn').addEventListener('click', saveSettings);
     document.getElementById('resetBtn').addEventListener('click', resetSettings);
     document.getElementById('addBlockedBtn').addEventListener('click', addNewBlockedSite);
+    document.getElementById('addSiteLimitBtn').addEventListener('click', addSiteLimit);
 });
 
 let currentEditingDomain = null;
 
 function loadSettings() {
     chrome.storage.sync.get(['limitHours', 'limitMinutes', 'resetHour', 'enableNotifications', 'enableWarning', 'showOverlay', 'showSiteTime'], (result) => {
-        const hours = String(result.limitHours || 2).padStart(2, '0');
-        const minutes = String(result.limitMinutes || 0).padStart(2, '0');
+        const hours = String(result.limitHours ?? 2).padStart(2, '0');
+        const minutes = String(result.limitMinutes ?? 0).padStart(2, '0');
         document.getElementById('limitTime').value = `${hours}:${minutes}`;
 
         const resetHour = String(result.resetHour || 0).padStart(2, '0');
@@ -23,6 +25,56 @@ function loadSettings() {
         document.getElementById('enableWarning').checked = result.enableWarning !== false;
         document.getElementById('showOverlay').checked = result.showOverlay !== false;
         document.getElementById('showSiteTime').checked = result.showSiteTime !== false;
+    });
+}
+
+function setupSiteLimitsUI() {
+    chrome.storage.sync.get(['siteLimits'], (r) => renderSiteLimits(r.siteLimits || {}));
+}
+
+function renderSiteLimits(siteLimits) {
+    const container = document.getElementById('siteLimitsList');
+    const entries = Object.entries(siteLimits);
+    if (!entries.length) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">אין הגבלות לפי אתר</p>';
+        return;
+    }
+    container.innerHTML = entries.map(([domain, ms]) => {
+        const h = String(Math.floor(ms / 3600000)).padStart(2,'0');
+        const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2,'0');
+        return `<div class="blocked-site-item">
+            <div class="blocked-site-domain">${domain} — ${h}:${m}</div>
+            <button class="btn-action btn-delete" data-domain="${domain}">🗑️ מחק</button>
+        </div>`;
+    }).join('');
+    container.querySelectorAll('.btn-delete').forEach(btn =>
+        btn.addEventListener('click', () => deleteSiteLimit(btn.dataset.domain))
+    );
+}
+
+function addSiteLimit() {
+    const domain = document.getElementById('newLimitDomain').value.trim().toLowerCase();
+    const [h, m] = document.getElementById('newLimitTime').value.split(':').map(Number);
+    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף'); return; }
+    const ms = (h * 60 + m) * 60 * 1000;
+    if (!ms) { showStatus('❌ הזמן חייב להיות גדול מ-0'); return; }
+    chrome.storage.sync.get(['siteLimits'], (r) => {
+        const siteLimits = r.siteLimits || {};
+        siteLimits[domain] = ms;
+        chrome.storage.sync.set({ siteLimits });
+        document.getElementById('newLimitDomain').value = '';
+        renderSiteLimits(siteLimits);
+        showStatus('✅ הגבלה נוספה');
+    });
+}
+
+function deleteSiteLimit(domain) {
+    chrome.storage.sync.get(['siteLimits'], (r) => {
+        const siteLimits = r.siteLimits || {};
+        delete siteLimits[domain];
+        chrome.storage.sync.set({ siteLimits });
+        renderSiteLimits(siteLimits);
+        showStatus('✅ הגבלה נמחקה');
     });
 }
 
