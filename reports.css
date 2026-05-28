@@ -171,6 +171,86 @@ h4 {
     background: #f5f5f5;
 }
 
+/* Top Sites Table */
+.sites-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.sites-table thead tr {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.sites-table th {
+    padding: 12px 14px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+}
+
+.sites-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+}
+
+.sites-table tbody tr:hover {
+    background: #f5f3ff;
+}
+
+.sites-table td {
+    padding: 11px 14px;
+    vertical-align: middle;
+}
+
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: white;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.domain-cell {
+    font-weight: 600;
+    color: #3a2d4a;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.time-cell {
+    color: #667eea;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.pct-cell {
+    color: #999;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.progress-bar {
+    background: #ede9fe;
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.4s ease;
+}
+
 /* RTL Support */
 [dir="rtl"] {
     direction: rtl;
