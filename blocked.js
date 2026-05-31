@@ -12,8 +12,9 @@ if (unblockDuration > 0) {
     document.getElementById('countdown').textContent = `לזמן של ${unblockDuration} דקות`;
 
     document.getElementById('unblockBtn').addEventListener('click', () => {
+        if (!/^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/.test(domain)) return;
         chrome.runtime.sendMessage({ action: 'unblockSite', domain, duration: unblockDuration }, () => {
-            location.href = 'https://' + domain;
+            location.assign('https://' + encodeURIComponent(domain).replace(/%2E/g, '.'));
         });
     });
 }

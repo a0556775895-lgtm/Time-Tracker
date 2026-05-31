@@ -103,7 +103,21 @@ function formatTime(ms) {
 }
 
 function resetToday() {
-    if (!confirm('לאפס את נתוני היום?')) return;
-    chrome.storage.local.set({ totalTime: 0, trackingStart: null, lastReset: Date.now(), siteTimes: {}, widgetWarning: 'normal' });
-    updateDisplay();
+    const confirmed = document.createElement('dialog');
+    confirmed.textContent = 'לאפס את נתוני היום?';
+    const yes = document.createElement('button');
+    yes.textContent = 'אפס';
+    yes.addEventListener('click', () => {
+        chrome.storage.local.set({ totalTime: 0, trackingStart: null, lastReset: Date.now(), siteTimes: {}, widgetWarning: 'normal' });
+        updateDisplay();
+        confirmed.close();
+        confirmed.remove();
+    });
+    const no = document.createElement('button');
+    no.textContent = 'ביטול';
+    no.addEventListener('click', () => { confirmed.close(); confirmed.remove(); });
+    confirmed.appendChild(yes);
+    confirmed.appendChild(no);
+    document.body.appendChild(confirmed);
+    confirmed.showModal();
 }

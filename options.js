@@ -35,21 +35,31 @@ function setupSiteLimitsUI() {
 function renderSiteLimits(siteLimits) {
     const container = document.getElementById('siteLimitsList');
     const entries = Object.entries(siteLimits);
+    container.innerHTML = '';
     if (!entries.length) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">אין הגבלות לפי אתר</p>';
+        const p = document.createElement('p');
+        p.style.cssText = 'text-align:center;color:#999;';
+        p.textContent = 'אין הגבלות לפי אתר';
+        container.appendChild(p);
         return;
     }
-    container.innerHTML = entries.map(([domain, ms]) => {
+    entries.forEach(([domain, ms]) => {
         const h = String(Math.floor(ms / 3600000)).padStart(2,'0');
         const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2,'0');
-        return `<div class="blocked-site-item">
-            <div class="blocked-site-domain">${domain} — ${h}:${m}</div>
-            <button class="btn-action btn-delete" data-domain="${domain}">🗑️ מחק</button>
-        </div>`;
-    }).join('');
-    container.querySelectorAll('.btn-delete').forEach(btn =>
-        btn.addEventListener('click', () => deleteSiteLimit(btn.dataset.domain))
-    );
+        const item = document.createElement('div');
+        item.className = 'blocked-site-item';
+        const label = document.createElement('div');
+        label.className = 'blocked-site-domain';
+        label.textContent = `${domain} — ${h}:${m}`;
+        const btn = document.createElement('button');
+        btn.className = 'btn-action btn-delete';
+        btn.textContent = '🗑️ מחק';
+        btn.dataset.domain = domain;
+        btn.addEventListener('click', () => deleteSiteLimit(domain));
+        item.appendChild(label);
+        item.appendChild(btn);
+        container.appendChild(item);
+    });
 }
 
 function addSiteLimit() {
@@ -71,9 +81,9 @@ function addSiteLimit() {
 function deleteSiteLimit(domain) {
     chrome.storage.sync.get(['siteLimits'], (r) => {
         const siteLimits = r.siteLimits || {};
-        delete siteLimits[domain];
-        chrome.storage.sync.set({ siteLimits });
-        renderSiteLimits(siteLimits);
+        const updated = Object.fromEntries(Object.entries(siteLimits).filter(([k]) => k !== domain));
+        chrome.storage.sync.set({ siteLimits: updated });
+        renderSiteLimits(updated);
         showStatus('✅ הגבלה נמחקה');
     });
 }
@@ -86,34 +96,48 @@ function setupBlockedSitesUI() {
 
 function renderBlockedSites(blockedSites) {
     const container = document.getElementById('blockedSitesList');
+    container.innerHTML = '';
 
     if (blockedSites.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">אין אתרים חסומים כרגע</p>';
+        const p = document.createElement('p');
+        p.style.cssText = 'text-align:center;color:#999;';
+        p.textContent = 'אין אתרים חסומים כרגע';
+        container.appendChild(p);
         return;
     }
 
-    container.innerHTML = blockedSites.map(site => `
-        <div class="blocked-site-item">
-            <div>
-                <div class="blocked-site-domain">${site.domain}</div>
-                <div class="blocked-site-info">
-                    ${site.enableUnblockTime ? `• unblock: ${site.unblockDuration} דק` : ''}
-                    ${site.enableConditionalBlock ? `• חסימה: ${site.blockStartTime}-${site.blockEndTime}` : ''}
-                </div>
-            </div>
-            <div class="blocked-site-actions">
-                <button class="btn-action btn-edit" data-domain="${site.domain}">⚙️ ערוך</button>
-                <button class="btn-action btn-delete" data-domain="${site.domain}">🗑️ מחק</button>
-            </div>
-        </div>
-    `).join('');
+    blockedSites.forEach(site => {
+        const item = document.createElement('div');
+        item.className = 'blocked-site-item';
 
-    container.querySelectorAll('.btn-edit').forEach(btn =>
-        btn.addEventListener('click', () => editBlockedSite(btn.dataset.domain))
-    );
-    container.querySelectorAll('.btn-delete').forEach(btn =>
-        btn.addEventListener('click', () => deleteBlockedSite(btn.dataset.domain))
-    );
+        const info = document.createElement('div');
+        const domainEl = document.createElement('div');
+        domainEl.className = 'blocked-site-domain';
+        domainEl.textContent = site.domain;
+        const infoEl = document.createElement('div');
+        infoEl.className = 'blocked-site-info';
+        if (site.enableUnblockTime) infoEl.textContent += `• unblock: ${site.unblockDuration} דק `;
+        if (site.enableConditionalBlock) infoEl.textContent += `• חסימה: ${site.blockStartTime}-${site.blockEndTime}`;
+        info.appendChild(domainEl);
+        info.appendChild(infoEl);
+
+        const actions = document.createElement('div');
+        actions.className = 'blocked-site-actions';
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-action btn-edit';
+        editBtn.textContent = '⚙️ ערוך';
+        editBtn.addEventListener('click', () => editBlockedSite(site.domain));
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-action btn-delete';
+        deleteBtn.textContent = '🗑️ מחק';
+        deleteBtn.addEventListener('click', () => deleteBlockedSite(site.domain));
+        actions.appendChild(editBtn);
+        actions.appendChild(deleteBtn);
+
+        item.appendChild(info);
+        item.appendChild(actions);
+        container.appendChild(item);
+    });
 }
 
 function addNewBlockedSite() {
@@ -167,13 +191,13 @@ function editBlockedSite(domain) {
 }
 
 function deleteBlockedSite(domain) {
-    if (!confirm(`האם אתה בטוח שברצונך למחוק את ${domain}?`)) return;
-
-    chrome.storage.sync.get(['blockedSitesAdvanced'], (result) => {
-        const filtered = (result.blockedSitesAdvanced || []).filter(s => s.domain !== domain);
-        chrome.storage.sync.set({ blockedSitesAdvanced: filtered });
-        renderBlockedSites(filtered);
-        showStatus('✅ אתר נמחק בהצלחה');
+    showConfirm(`האם אתה בטוח שברצונך למחוק את ${domain}?`, () => {
+        chrome.storage.sync.get(['blockedSitesAdvanced'], (result) => {
+            const filtered = (result.blockedSitesAdvanced || []).filter(s => s.domain !== domain);
+            chrome.storage.sync.set({ blockedSitesAdvanced: filtered });
+            renderBlockedSites(filtered);
+            showStatus('✅ אתר נמחק בהצלחה');
+        });
     });
 }
 
@@ -278,21 +302,16 @@ function saveSettings() {
 }
 
 function resetSettings() {
-    if (!confirm('האם אתה בטוח שאתה רוצה לחזור לברירות המחדל?\nהיסטוריה ואתרים חסומים לא יימחקו.')) return;
-
-    // Only reset user preferences — preserve history and blocked sites
-    chrome.storage.sync.set({
-        limitHours: 2,
-        limitMinutes: 0,
-        resetHour: 0,
-        enableNotifications: true,
-        enableWarning: true,
-        showOverlay: true,
-        showSiteTime: true
+    showConfirm('האם אתה בטוח שאתה רוצה לחזור לברירות המחדל?\nהיסטוריה ואתרים חסומים לא יימחקו.', () => {
+        chrome.storage.sync.set({
+            limitHours: 2, limitMinutes: 0, resetHour: 0,
+            enableNotifications: true, enableWarning: true,
+            showOverlay: true, showSiteTime: true
+        });
+        chrome.storage.local.set({ dailyLimit: 2 * 60 * 60 * 1000 });
+        loadSettings();
+        showStatus('חזרנו לברירות המחדל');
     });
-    chrome.storage.local.set({ dailyLimit: 2 * 60 * 60 * 1000 });
-    loadSettings();
-    showStatus('חזרנו לברירות המחדל');
 }
 
 function isValidDomain(domain) {
@@ -305,6 +324,23 @@ function getNextResetTime(hour) {
     next.setHours(hour, 0, 0, 0);
     if (next <= now) next.setDate(next.getDate() + 1);
     return next.getTime();
+}
+
+function showConfirm(message, onConfirm) {
+    const dialog = document.createElement('dialog');
+    const msg = document.createElement('p');
+    msg.textContent = message;
+    const yes = document.createElement('button');
+    yes.textContent = 'אשר';
+    yes.addEventListener('click', () => { dialog.close(); dialog.remove(); onConfirm(); });
+    const no = document.createElement('button');
+    no.textContent = 'ביטול';
+    no.addEventListener('click', () => { dialog.close(); dialog.remove(); });
+    dialog.appendChild(msg);
+    dialog.appendChild(yes);
+    dialog.appendChild(no);
+    document.body.appendChild(dialog);
+    dialog.showModal();
 }
 
 function showStatus(message = 'ההגדרות נשמרו בהצלחה!') {
