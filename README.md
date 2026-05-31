@@ -117,7 +117,7 @@ time-tracker/
 
 ## Contributing 🤝
 
-1. Fork the repository
+1. Fork the repository at [github.com/a0556775895-lgtm/Time-Tracker](https://github.com/a0556775895-lgtm/Time-Tracker)
 2. Create a feature branch
 3. Make your changes
 4. Test thoroughly
