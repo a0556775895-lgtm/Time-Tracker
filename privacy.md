@@ -1,14 +1,14 @@
-# Privacy Policy - Tima-Tracker
+# Privacy Policy - Time-Tracker
 
 **Last updated:** 2026
 
 ## Overview
 
-FocusWatch is a Chrome extension that helps users track and manage their daily browser usage. This privacy policy explains how the extension handles data.
+Time-Tracker is a Chrome extension that helps users track and manage their daily browser usage. This privacy policy explains how the extension handles data.
 
 ## Data Collection
 
-Tima-Tracker does **not** collect, transmit, or share any personal data.
+Time-Tracker does **not** collect, transmit, or share any personal data.
 
 All data is stored exclusively in Chrome's local storage on your device and is never sent to any external server or third party.
 

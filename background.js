@@ -151,18 +151,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         alertShown = false;
         chrome.alarms.create('snoozeReminder', { delayInMinutes: minutes });
         sendResponse({ success: true });
+        return true;
     }
 
     if (request.action === 'dismissAlert') {
         alertDismissedUntil = getEndOfDay();
         alertShown = false;
         sendResponse({ success: true });
+        return true;
     }
 
     if (request.action === 'disableAlertsToday') {
         alertDismissedUntil = getEndOfDay();
         alertShown = false;
         sendResponse({ success: true });
+        return true;
     }
 
     if (request.action === 'unblockSite') {
