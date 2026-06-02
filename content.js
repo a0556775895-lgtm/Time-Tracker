@@ -65,10 +65,14 @@ function tick() {
                 chrome.storage.local.get(['siteTimes', 'trackingStart', 'widgetWarning'], (local) => {
                     applyWarningStyle(local.widgetWarning || 'normal');
                     const hostname = location.hostname;
-                    let siteMs = (local.siteTimes || {})[hostname] || 0;
-                    if (local.trackingStart) siteMs += Date.now() - local.trackingStart;
-                    timerWidget.innerHTML =
-                        `<div>${totalStr}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${hostname ? hostname + ': ' + formatTime(siteMs) : ''}</div>`;
+                    chrome.storage.sync.get(['excludedSites'], (sr) => {
+                        const excluded = (sr.excludedSites || []).includes(hostname);
+                        let siteMs = (local.siteTimes || {})[hostname] || 0;
+                        if (!excluded && local.trackingStart) siteMs += Date.now() - local.trackingStart;
+                        const totalDisplay = excluded ? formatTime(totalMs) : totalStr;
+                        timerWidget.innerHTML =
+                            `<div>${totalDisplay}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${hostname ? hostname + ': ' + (excluded ? '—' : formatTime(siteMs)) : ''}</div>`;
+                    });
                 });
             });
         });

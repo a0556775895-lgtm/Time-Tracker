@@ -110,8 +110,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.storage.local.get(['totalTime', 'trackingStart'], (r) => {
             if (chrome.runtime.lastError) { sendResponse({ totalTime: 0 }); return; }
             let total = r.totalTime || 0;
-            if (r.trackingStart) total += Date.now() - r.trackingStart;
-            try { sendResponse({ totalTime: total }); } catch (e) {}
+            if (r.trackingStart) {
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    const url = tabs && tabs[0] && tabs[0].url;
+                    let hostname = '';
+                    try { hostname = url ? new URL(url).hostname : ''; } catch (e) {}
+                    chrome.storage.sync.get(['excludedSites'], (sr) => {
+                        if (!(sr.excludedSites || []).includes(hostname)) {
+                            total += Date.now() - r.trackingStart;
+                        }
+                        try { sendResponse({ totalTime: total }); } catch (e) {}
+                    });
+                });
+            } else {
+                try { sendResponse({ totalTime: total }); } catch (e) {}
+            }
         });
         return true;
     }
@@ -377,13 +390,18 @@ function saveDomainTime(callback) {
             let hostname;
             try { hostname = new URL(tab.url).hostname; } catch (e) { if (callback) callback(); return; }
 
-            const siteTimes = r.siteTimes || {};
-            siteTimes[hostname] = (siteTimes[hostname] || 0) + elapsed;
-            const totalTime = (r.totalTime || 0) + elapsed;
+            chrome.storage.sync.get(['excludedSites'], (sr) => {
+                const excluded = sr.excludedSites || [];
+                const isExcluded = excluded.includes(hostname);
 
-            chrome.storage.local.set({ totalTime, siteTimes, trackingStart: null }, () => {
-                checkLimitExceeded(totalTime);
-                if (callback) callback();
+                const siteTimes = r.siteTimes || {};
+                if (!isExcluded) siteTimes[hostname] = (siteTimes[hostname] || 0) + elapsed;
+                const totalTime = (r.totalTime || 0) + (isExcluded ? 0 : elapsed);
+
+                chrome.storage.local.set({ totalTime, siteTimes, trackingStart: null }, () => {
+                    if (!isExcluded) checkLimitExceeded(totalTime);
+                    if (callback) callback();
+                });
             });
         });
     });

@@ -2,12 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     setupBlockedSitesUI();
     setupSiteLimitsUI();
+    setupExcludedSitesUI();
     setupModal();
 
     document.getElementById('saveBtn').addEventListener('click', saveSettings);
     document.getElementById('resetBtn').addEventListener('click', resetSettings);
     document.getElementById('addBlockedBtn').addEventListener('click', addNewBlockedSite);
     document.getElementById('addSiteLimitBtn').addEventListener('click', addSiteLimit);
+    document.getElementById('addExcludedBtn').addEventListener('click', addExcludedSite);
 });
 
 let currentEditingDomain = null;
@@ -85,6 +87,54 @@ function deleteSiteLimit(domain) {
         chrome.storage.sync.set({ siteLimits: updated });
         renderSiteLimits(updated);
         showStatus('✅ הגבלה נמחקה');
+    });
+}
+
+function setupExcludedSitesUI() {
+    chrome.storage.sync.get(['excludedSites'], (r) => renderExcludedSites(r.excludedSites || []));
+}
+
+function renderExcludedSites(list) {
+    const container = document.getElementById('excludedSitesList');
+    container.innerHTML = '';
+    if (!list.length) {
+        const p = document.createElement('p');
+        p.style.cssText = 'text-align:center;color:#999;';
+        p.textContent = 'אין אתרים מוחרגים';
+        container.appendChild(p);
+        return;
+    }
+    list.forEach(domain => {
+        const item = document.createElement('div');
+        item.className = 'blocked-site-item';
+        const label = document.createElement('div');
+        label.className = 'blocked-site-domain';
+        label.textContent = domain;
+        const btn = document.createElement('button');
+        btn.className = 'btn-action btn-delete';
+        btn.textContent = '🗑️ מחק';
+        btn.addEventListener('click', () => {
+            const updated = list.filter(d => d !== domain);
+            chrome.storage.sync.set({ excludedSites: updated });
+            renderExcludedSites(updated);
+        });
+        item.appendChild(label);
+        item.appendChild(btn);
+        container.appendChild(item);
+    });
+}
+
+function addExcludedSite() {
+    const domain = document.getElementById('newExcludedDomain').value.trim().toLowerCase();
+    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף'); return; }
+    chrome.storage.sync.get(['excludedSites'], (r) => {
+        const list = r.excludedSites || [];
+        if (list.includes(domain)) { showStatus('❌ האתר כבר קיים ברשימה'); return; }
+        list.push(domain);
+        chrome.storage.sync.set({ excludedSites: list });
+        document.getElementById('newExcludedDomain').value = '';
+        renderExcludedSites(list);
+        showStatus('✅ אתר נוסף לרשימת החרגות');
     });
 }
 
