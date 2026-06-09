@@ -76,6 +76,7 @@ function checkLimitExceeded(totalTime) {
             for (const [domain, limitMs] of Object.entries(siteLimits)) {
                 const siteTime = siteTimes[domain] || 0;
                 const sitePct = siteTime / limitMs;
+                const remaining = limitMs - siteTime;
                 if (sitePct >= 0.8 && !siteAlertShown[domain + '_warn']) {
                     siteAlertShown[domain + '_warn'] = true;
                     chrome.notifications.create('siteWarn_' + domain, {
@@ -83,6 +84,12 @@ function checkLimitExceeded(totalTime) {
                         iconUrl: chrome.runtime.getURL('images/icon48.png'),
                         title: `⚠️ ${domain}`,
                         message: `השתמשת ב-${Math.round(sitePct*100)}% מהמגבלה היומית לאתר זה`
+                    });
+                    // Notify content script to show warning in widget
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, {
+                            action: 'siteWarning', domain, remaining
+                        }).catch(() => {});
                     });
                 }
                 if (sitePct >= 1 && !siteAlertShown[domain + '_limit']) {
@@ -92,6 +99,12 @@ function checkLimitExceeded(totalTime) {
                         iconUrl: chrome.runtime.getURL('images/icon48.png'),
                         title: `🚫 ${domain} — הגבלה הושגה`,
                         message: `חרגת מהמגבלה היומית שהגדרת לאתר זה`
+                    });
+                    // Notify content script to start countdown
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, {
+                            action: 'startSiteCountdown', domain
+                        }).catch(() => {});
                     });
                 }
             }
@@ -200,7 +213,9 @@ chrome.runtime.onInstalled.addListener(() => {
     });
 });
 
-chrome.runtime.onStartup.addListener(initTracking);
+chrome.runtime.onStartup.addListener(() => {
+    chrome.storage.local.set({ trackingStart: null }, initTracking);
+});
 
 // ── Daily Reset ───────────────────────────────────────────────────────────────
 
@@ -265,16 +280,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // ── Tab Events ────────────────────────────────────────────────────────────────
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
-    // Save time for old tab's domain before switching
     saveDomainTime(() => {
         activeTabId = activeInfo.tabId;
         chrome.tabs.get(activeTabId, (tab) => {
             if (chrome.runtime.lastError || !tab) return;
             const url = tab.url || '';
-            if (url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) {
+            if (!url || url.startsWith('chrome://') || url.startsWith('about:') || url.startsWith('chrome-extension://')) {
                 pauseTracking();
             } else {
-                // Reset trackingStart for new tab
                 chrome.storage.local.set({ trackingStart: Date.now() });
             }
         });
@@ -282,11 +295,16 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    // Inject content script fallback
-    if (changeInfo.status === 'complete' && tab.url &&
-        !tab.url.startsWith('chrome://') && !tab.url.startsWith('about:') &&
-        !tab.url.startsWith('chrome-extension://')) {
-        chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }).catch(() => {});
+    if (changeInfo.status !== 'complete' || !tab.url) return;
+    if (tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://')) return;
+
+    chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }).catch(() => {});
+
+    // If this is the active tab, make sure tracking has started
+    if (tabId === activeTabId) {
+        chrome.storage.local.get(['trackingStart'], (r) => {
+            if (!r.trackingStart) chrome.storage.local.set({ trackingStart: Date.now() });
+        });
     }
 });
 
@@ -374,13 +392,22 @@ function saveDomainTime(callback) {
             let hostname;
             try { hostname = new URL(tab.url).hostname; } catch (e) { if (callback) callback(); return; }
 
-            const siteTimes = r.siteTimes || {};
-            siteTimes[hostname] = (siteTimes[hostname] || 0) + elapsed;
-            const totalTime = (r.totalTime || 0) + elapsed;
+            chrome.storage.sync.get(['ignoredSites'], (s) => {
+                const ignoredSites = s.ignoredSites || [];
+                if (ignoredSites.includes(hostname)) {
+                    // Reset trackingStart without saving time
+                    chrome.storage.local.set({ trackingStart: null }, () => { if (callback) callback(); });
+                    return;
+                }
 
-            chrome.storage.local.set({ totalTime, siteTimes, trackingStart: null }, () => {
-                checkLimitExceeded(totalTime);
-                if (callback) callback();
+                const siteTimes = r.siteTimes || {};
+                siteTimes[hostname] = (siteTimes[hostname] || 0) + elapsed;
+                const totalTime = (r.totalTime || 0) + elapsed;
+
+                chrome.storage.local.set({ totalTime, siteTimes, trackingStart: null }, () => {
+                    checkLimitExceeded(totalTime);
+                    if (callback) callback();
+                });
             });
         });
     });

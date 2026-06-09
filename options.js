@@ -2,12 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     setupBlockedSitesUI();
     setupSiteLimitsUI();
+    setupIgnoredSitesUI();
     setupModal();
 
     document.getElementById('saveBtn').addEventListener('click', saveSettings);
     document.getElementById('resetBtn').addEventListener('click', resetSettings);
     document.getElementById('addBlockedBtn').addEventListener('click', addNewBlockedSite);
     document.getElementById('addSiteLimitBtn').addEventListener('click', addSiteLimit);
+    document.getElementById('addIgnoredBtn').addEventListener('click', addIgnoredSite);
 });
 
 let currentEditingDomain = null;
@@ -85,6 +87,59 @@ function deleteSiteLimit(domain) {
         chrome.storage.sync.set({ siteLimits: updated });
         renderSiteLimits(updated);
         showStatus('✅ הגבלה נמחקה');
+    });
+}
+
+function setupIgnoredSitesUI() {
+    chrome.storage.sync.get(['ignoredSites'], (r) => renderIgnoredSites(r.ignoredSites || []));
+}
+
+function renderIgnoredSites(sites) {
+    const container = document.getElementById('ignoredSitesList');
+    container.innerHTML = '';
+    if (!sites.length) {
+        const p = document.createElement('p');
+        p.style.cssText = 'text-align:center;color:#999;';
+        p.textContent = 'אין אתרים לא נספרים';
+        container.appendChild(p);
+        return;
+    }
+    sites.forEach(domain => {
+        const item = document.createElement('div');
+        item.className = 'blocked-site-item';
+        const label = document.createElement('div');
+        label.className = 'blocked-site-domain';
+        label.textContent = domain;
+        const btn = document.createElement('button');
+        btn.className = 'btn-action btn-delete';
+        btn.textContent = '🗑️ מחק';
+        btn.addEventListener('click', () => deleteIgnoredSite(domain));
+        item.appendChild(label);
+        item.appendChild(btn);
+        container.appendChild(item);
+    });
+}
+
+function addIgnoredSite() {
+    const domain = document.getElementById('newIgnoredDomain').value.trim().toLowerCase();
+    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף'); return; }
+    chrome.storage.sync.get(['ignoredSites'], (r) => {
+        const sites = r.ignoredSites || [];
+        if (sites.includes(domain)) { showStatus('❌ האתר כבר קיים ברשימה'); return; }
+        sites.push(domain);
+        chrome.storage.sync.set({ ignoredSites: sites });
+        document.getElementById('newIgnoredDomain').value = '';
+        renderIgnoredSites(sites);
+        showStatus('✅ אתר נוסף');
+    });
+}
+
+function deleteIgnoredSite(domain) {
+    chrome.storage.sync.get(['ignoredSites'], (r) => {
+        const sites = (r.ignoredSites || []).filter(d => d !== domain);
+        chrome.storage.sync.set({ ignoredSites: sites });
+        renderIgnoredSites(sites);
+        showStatus('✅ אתר הוסר');
     });
 }
 

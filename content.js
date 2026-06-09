@@ -5,6 +5,8 @@ let timerWidget = null;
 let intervalId = null;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
+let siteCountdownActive = false;
+let siteWarningMsg = null;
 
 function isContextValid() {
     try { return !!(chrome && chrome.runtime && chrome.runtime.id); } catch (e) { return false; }
@@ -49,12 +51,26 @@ function tick() {
     if (!isContextValid()) { clearInterval(intervalId); removeWidget(); return; }
     if (!timerWidget || !document.body.contains(timerWidget)) return;
     try {
-        chrome.runtime.sendMessage({ action: 'getTime' }, (response) => {
-            if (chrome.runtime.lastError || !response) return;
-            const totalMs = response.totalTime || 0;
-            const totalStr = formatTime(totalMs);
+        chrome.storage.sync.get(['showSiteTime', 'ignoredSites'], (syncResult) => {
+            const hostname = location.hostname;
+            if ((syncResult.ignoredSites || []).includes(hostname)) {
+                applyWarningStyle('normal');
+                timerWidget.textContent = '---';
+                return;
+            }
+            // Show site warning/countdown if active
+            if (siteWarningMsg) {
+                timerWidget.style.background = '#fff3cd';
+                timerWidget.style.color = '#856404';
+                timerWidget.style.borderColor = '#ffc107';
+                timerWidget.textContent = siteWarningMsg;
+                return;
+            }
+            chrome.runtime.sendMessage({ action: 'getTime' }, (response) => {
+                if (chrome.runtime.lastError || !response) return;
+                const totalMs = response.totalTime || 0;
+                const totalStr = formatTime(totalMs);
 
-            chrome.storage.sync.get(['showSiteTime'], (syncResult) => {
                 if (!syncResult.showSiteTime && syncResult.showSiteTime !== undefined) {
                     chrome.storage.local.get(['widgetWarning'], (local) => {
                         applyWarningStyle(local.widgetWarning || 'normal');
@@ -64,7 +80,6 @@ function tick() {
                 }
                 chrome.storage.local.get(['siteTimes', 'trackingStart', 'widgetWarning'], (local) => {
                     applyWarningStyle(local.widgetWarning || 'normal');
-                    const hostname = location.hostname;
                     let siteMs = (local.siteTimes || {})[hostname] || 0;
                     if (local.trackingStart) siteMs += Date.now() - local.trackingStart;
                     timerWidget.innerHTML =
@@ -156,6 +171,40 @@ function init() {
         createWidget();
     });
 }
+
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'siteWarning' && request.domain === location.hostname) {
+        const mins = Math.ceil(request.remaining / 60000);
+        siteWarningMsg = `⚠️ נותרו ${mins} דק' ב-${request.domain}`;
+        setTimeout(() => { siteWarningMsg = null; }, 10000);
+    }
+
+    if (request.action === 'startSiteCountdown' && request.domain === location.hostname) {
+        if (siteCountdownActive) return;
+        siteCountdownActive = true;
+        let seconds = 5;
+        siteWarningMsg = `🚫 חורג מהמגבלה בעוד ${seconds}...`;
+        const cd = setInterval(() => {
+            seconds--;
+            if (seconds <= 0) {
+                clearInterval(cd);
+                siteWarningMsg = null;
+                siteCountdownActive = false;
+                chrome.storage.sync.get(['siteLimits'], (r) => {
+                    const limitMs = (r.siteLimits || {})[request.domain];
+                    const params = new URLSearchParams({
+                        domain: request.domain,
+                        message: 'הגעת למגבלת הזמן היומית שלך לאתר זה',
+                        unblockDuration: 5
+                    });
+                    location.href = chrome.runtime.getURL('blocked.html') + '?' + params;
+                });
+            } else {
+                siteWarningMsg = `🚫 חורג מהמגבלה בעוד ${seconds}...`;
+            }
+        }, 1000);
+    }
+});
 
 chrome.storage.onChanged.addListener((changes, ns) => {
     if (!isContextValid()) return;

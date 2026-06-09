@@ -17,16 +17,19 @@ document.querySelectorAll('.time-btn').forEach(btn => {
         const minutes = parseInt(btn.dataset.minutes);
         document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
-        chrome.runtime.sendMessage({ action: 'snoozeAlert', minutes }, () => window.close());
+        chrome.runtime.sendMessage({ action: 'snoozeAlert', minutes });
+        window.close();
     });
 });
 
 document.getElementById('dismissBtn').addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'dismissAlert' }, () => window.close());
+    chrome.runtime.sendMessage({ action: 'dismissAlert' });
+    window.close();
 });
 
 document.getElementById('disableBtn').addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'disableAlertsToday' }, () => window.close());
+    chrome.runtime.sendMessage({ action: 'disableAlertsToday' });
+    window.close();
 });
 
 function formatTime(ms) {
