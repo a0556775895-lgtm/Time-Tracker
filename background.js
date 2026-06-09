@@ -53,7 +53,9 @@ function pauseTracking() {
 let warningShown = false;
 
 function checkLimitExceeded(totalTime) {
-    chrome.storage.local.get(['dailyLimit', 'siteTimes'], (r) => {
+    chrome.storage.local.get(['dailyLimit', 'siteTimes', 'alertDismissedUntil'], (r) => {
+        // Update the in-memory variable
+        if (r.alertDismissedUntil) alertDismissedUntil = r.alertDismissedUntil;
         const limit = r.dailyLimit || 2 * 60 * 60 * 1000;
         const pct = totalTime / limit;
 
@@ -162,6 +164,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const minutes = request.minutes || 5;
         alertDismissedUntil = Date.now() + minutes * 60 * 1000;
         alertShown = false;
+        chrome.storage.local.set({ alertDismissedUntil });
         chrome.alarms.create('snoozeReminder', { delayInMinutes: minutes });
         sendResponse({ success: true });
     }
@@ -169,12 +172,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'dismissAlert') {
         alertDismissedUntil = getEndOfDay();
         alertShown = false;
+        chrome.storage.local.set({ alertDismissedUntil });
         sendResponse({ success: true });
     }
 
     if (request.action === 'disableAlertsToday') {
         alertDismissedUntil = getEndOfDay();
         alertShown = false;
+        chrome.storage.local.set({ alertDismissedUntil });
         sendResponse({ success: true });
     }
 
@@ -203,6 +208,9 @@ function initTracking() {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
+    chrome.storage.local.get(['alertDismissedUntil'], (r) => {
+        if (r.alertDismissedUntil) alertDismissedUntil = r.alertDismissedUntil;
+    });
     initTracking();
     chrome.storage.sync.get(['resetHour'], (r) => {
         if (chrome.runtime.lastError) return;
@@ -214,6 +222,9 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+    chrome.storage.local.get(['alertDismissedUntil'], (r) => {
+        if (r.alertDismissedUntil) alertDismissedUntil = r.alertDismissedUntil;
+    });
     chrome.storage.local.set({ trackingStart: null }, initTracking);
 });
 
@@ -261,7 +272,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
                 trackingStart: null,
                 lastReset: Date.now(),
                 siteTimes: {},
-                tempUnblocked: {}
+                tempUnblocked: {},
+                alertDismissedUntil: 0
             });
             // Reset per-site alert flags
             Object.keys(siteAlertShown).forEach(k => delete siteAlertShown[k]);

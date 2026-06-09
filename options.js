@@ -65,11 +65,11 @@ function renderSiteLimits(siteLimits) {
 }
 
 function addSiteLimit() {
-    const domain = document.getElementById('newLimitDomain').value.trim().toLowerCase();
+    const domain = sanitizeDomain(document.getElementById('newLimitDomain').value.trim().toLowerCase());
     const [h, m] = document.getElementById('newLimitTime').value.split(':').map(Number);
-    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף'); return; }
+    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף', 'newLimitDomain'); return; }
     const ms = (h * 60 + m) * 60 * 1000;
-    if (!ms) { showStatus('❌ הזמן חייב להיות גדול מ-0'); return; }
+    if (!ms) { showStatus('❌ הזמן חייב להיות גדול מ-0', 'newLimitDomain'); return; }
     chrome.storage.sync.get(['siteLimits'], (r) => {
         const siteLimits = r.siteLimits || {};
         siteLimits[domain] = ms;
@@ -121,11 +121,11 @@ function renderIgnoredSites(sites) {
 }
 
 function addIgnoredSite() {
-    const domain = document.getElementById('newIgnoredDomain').value.trim().toLowerCase();
-    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף'); return; }
+    const domain = sanitizeDomain(document.getElementById('newIgnoredDomain').value.trim().toLowerCase());
+    if (!domain || !isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף', 'newIgnoredDomain'); return; }
     chrome.storage.sync.get(['ignoredSites'], (r) => {
         const sites = r.ignoredSites || [];
-        if (sites.includes(domain)) { showStatus('❌ האתר כבר קיים ברשימה'); return; }
+        if (sites.includes(domain)) { showStatus('❌ האתר כבר קיים ברשימה', 'newIgnoredDomain'); return; }
         sites.push(domain);
         chrome.storage.sync.set({ ignoredSites: sites });
         document.getElementById('newIgnoredDomain').value = '';
@@ -196,16 +196,16 @@ function renderBlockedSites(blockedSites) {
 }
 
 function addNewBlockedSite() {
-    const domain = document.getElementById('newBlockedDomain').value.trim().toLowerCase();
+    const domain = sanitizeDomain(document.getElementById('newBlockedDomain').value.trim().toLowerCase());
 
-    if (!domain) { showStatus('❌ אנא הזן שם אתר'); return; }
-    if (!isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף (עד: example.com)'); return; }
+    if (!domain) { showStatus('❌ אנא הזן שם אתר', 'newBlockedDomain'); return; }
+    if (!isValidDomain(domain)) { showStatus('❌ שם אתר לא תקף (עד: example.com)', 'newBlockedDomain'); return; }
 
     chrome.storage.sync.get(['blockedSitesAdvanced'], (result) => {
         const blockedSites = result.blockedSitesAdvanced || [];
 
         if (blockedSites.some(s => s.domain === domain)) {
-            showStatus('❌ האתר כבר קיים ברשימה');
+            showStatus('❌ האתר כבר קיים ברשימה', 'newBlockedDomain');
             return;
         }
 
@@ -369,6 +369,10 @@ function resetSettings() {
     });
 }
 
+function sanitizeDomain(domain) {
+    return domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+}
+
 function isValidDomain(domain) {
     return /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$|^localhost$/.test(domain);
 }
@@ -398,7 +402,22 @@ function showConfirm(message, onConfirm) {
     dialog.showModal();
 }
 
-function showStatus(message = 'ההגדרות נשמרו בהצלחה!') {
+function showStatus(message = 'ההגדרות נשמרו בהצלחה!', inputId = null) {
+    const isError = message.startsWith('❌');
+    if (inputId && isError) {
+        const input = document.getElementById(inputId);
+        let errorEl = input.parentElement.querySelector('.inline-error');
+        if (!errorEl) {
+            errorEl = document.createElement('div');
+            errorEl.className = 'inline-error';
+            errorEl.style.cssText = 'color:#e53935;font-size:0.85em;margin-top:4px;';
+            input.parentElement.insertAdjacentElement('afterend', errorEl);
+        }
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        setTimeout(() => { errorEl.style.display = 'none'; }, 3000);
+        return;
+    }
     const status = document.getElementById('status');
     status.textContent = message;
     status.style.display = 'block';
